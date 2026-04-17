@@ -175,3 +175,16 @@ internal/config/               YAML load + merge (embeds presets.yaml)
 internal/build/                Dockerfile gen, hash, docker build
 internal/run/                  docker run arg assembly
 ```
+
+## Releasing
+
+Releases are built by GoReleaser via GitHub Actions when a `v*` tag is pushed:
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow (`.github/workflows/release.yml`) produces linux/darwin amd64 +
+arm64 tarballs, a checksums file, and an auto-generated changelog on the
+GitHub release. Configuration lives in `.goreleaser.yaml`.

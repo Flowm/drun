@@ -12,6 +12,13 @@ import (
 	"github.com/flowm/drun/internal/run"
 )
 
+// Populated via -ldflags at release time by GoReleaser.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 const usage = `drun — docker run, preset-driven.
 
 Usage:
@@ -23,6 +30,7 @@ Usage:
   drun --rebuild <preset> [args...]     Force rebuild of layer image, then run
   drun --prune                          Remove all drun/* local images
   drun -h, --help                       Show this help
+  drun --version                        Print version
 
 The first positional argument terminates drun flag parsing; everything after
 is passed to the container entrypoint verbatim. All drun flags must appear
@@ -46,6 +54,7 @@ type flags struct {
 	rebuildMode bool
 	pruneMode   bool
 	helpMode    bool
+	versionMode bool
 
 	image        string
 	layers       []string
@@ -70,6 +79,10 @@ func main() {
 	}
 	if f.helpMode {
 		fmt.Print(usage)
+		return
+	}
+	if f.versionMode {
+		fmt.Printf("drun %s (commit %s, built %s)\n", version, commit, date)
 		return
 	}
 
@@ -264,6 +277,9 @@ func parseArgs(argv []string) (*flags, error) {
 		switch {
 		case a == "--help" || a == "-h":
 			f.helpMode = true
+			return f, nil
+		case a == "--version":
+			f.versionMode = true
 			return f, nil
 		case a == "--list":
 			f.listMode = true
