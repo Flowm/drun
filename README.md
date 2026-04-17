@@ -1,10 +1,17 @@
 # drun - docker run
 
-A preset-driven `docker run` wrapper. One YAML config describes how to run
-containers; drun applies sensible defaults, always drops to the host user,
-and — when a preset declares tool layers — transparently builds a local
-image on top of the upstream base so extra tools can be added without
-giving up the non-root runtime.
+A preset-driven wrapper around `docker run` for ad-hoc usage of tools.
+
+## Features
+
+- YAML presets for common tools; ships with sensible defaults, overridable per user
+- Always runs as the host user (`--user $(id -u):$(id -g)`) so files stay yours
+- Current directory mounted at `/cwd` and set as the working dir by default
+- Transparent layering: declare extra packages and drun builds a local image on top of the base
+- Ad-hoc mode: run any image with `-i <ref>` without writing a preset
+- Override any preset field from the CLI (image, mounts, env, ports, entrypoint, user, home)
+- `--print` for dry-runs, `--rebuild` to force a layer rebuild, `--prune` to clean up built images
+- Single static Go binary, depends only on the `docker` CLI
 
 ## Install
 
@@ -188,3 +195,13 @@ git push origin v0.1.0
 The workflow (`.github/workflows/release.yml`) produces linux/darwin amd64 +
 arm64 tarballs, a checksums file, and an auto-generated changelog on the
 GitHub release. Configuration lives in `.goreleaser.yaml`.
+
+## Motivation
+
+`drun` exists to keep the convenience of `docker run` aliases without the sprawl of maintaining them in shell config.
+
+Compared to **Whalebrew**, `drun` is less magical and more explicit: it does not depend on image labels or installation shims, and every invocation is still just a transparent `docker run` you can inspect with `--print`.
+Compared to **ccliwrapper**, `drun` stays **Docker-first** and works with a single static binary instead of targeting a Podman-specific workflow.
+Unlike **Distrobox** or **Toolbx**, `drun` is not trying to provide a long-lived, host-integrated development environment — it is optimized for **ad-hoc, per-command tool execution**.
+
+The goal is intentionally narrow: make containerized CLI tools feel as lightweight as aliases, while adding shareable presets, reproducible per-tool layering, and easy per-run overrides.
