@@ -201,6 +201,11 @@ func cmdRun(presets config.Presets, f *flags) error {
 		run.Print(args)
 		return nil
 	}
+	if missing := run.MissingHostDirs(p, run.Options{}); len(missing) > 0 {
+		if err := run.EnsureHostDirs(missing, os.Stdin, os.Stdout); err != nil {
+			return err
+		}
+	}
 	return run.Exec(args)
 }
 

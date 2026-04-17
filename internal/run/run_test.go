@@ -1,6 +1,8 @@
 package run
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -136,6 +138,76 @@ func TestPrintQuoting(t *testing.T) {
 	quoted := quoteAll(args)
 	if quoted[len(quoted)-1] != "'echo hi'" {
 		t.Errorf("expected quoted arg, got %q", quoted[len(quoted)-1])
+	}
+}
+
+func TestLooksLikeFile(t *testing.T) {
+	cases := map[string]bool{
+		".ssh":        false,
+		".config":     false,
+		"opencode":    false,
+		"config.yaml": true,
+		".bashrc":     false, // leading-dot-only
+		".git.conf":   true,  // leading dot + extension
+		"id_rsa.pub":  true,
+	}
+	for in, want := range cases {
+		if got := looksLikeFile(in); got != want {
+			t.Errorf("looksLikeFile(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestMissingHostDirs(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "exists")
+	if err := os.MkdirAll(existing, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	missingDir := filepath.Join(dir, "missing")
+	missingFileLike := filepath.Join(dir, "looks.like.file")
+
+	p := config.Preset{
+		Image: "alpine",
+		Mounts: []string{
+			existing + ":/c/exists",
+			missingDir + ":/c/missing",
+			missingFileLike + ":/c/file:ro",
+		},
+	}
+	got := MissingHostDirs(p, Options{ExtraMounts: []string{missingDir + ":/c/dup"}})
+	// Only the plain missing dir should be reported; the file-looking path
+	// is skipped and duplicates are deduped.
+	if len(got) != 1 || got[0] != missingDir {
+		t.Fatalf("MissingHostDirs = %v, want [%s]", got, missingDir)
+	}
+}
+
+func TestEnsureHostDirsCreates(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "a", "b", "c")
+	// stdin is not a TTY in tests -> auto-create.
+	var out strings.Builder
+	if err := EnsureHostDirs([]string{target}, strings.NewReader(""), &out); err != nil {
+		t.Fatalf("EnsureHostDirs: %v", err)
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatalf("target not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("target is not a directory")
+	}
+}
+
+func TestEnsureHostDirsNoop(t *testing.T) {
+	// No missing paths: should do nothing and not prompt.
+	var out strings.Builder
+	if err := EnsureHostDirs(nil, strings.NewReader(""), &out); err != nil {
+		t.Fatalf("EnsureHostDirs(nil): %v", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("expected no output, got %q", out.String())
 	}
 }
 

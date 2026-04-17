@@ -1,7 +1,9 @@
 package run
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -146,4 +148,78 @@ func isTerminal(f *os.File) bool {
 		return false
 	}
 	return (fi.Mode() & os.ModeCharDevice) != 0
+}
+
+// MissingHostDirs returns the list of host-side mount paths that do not yet
+// exist on the filesystem. Extra mounts from CLI are included. Paths with
+// leading ~ are expanded. Entries that look like file mounts (the last path
+// segment contains a dot) are skipped so we don't mkdir over an intended
+// file-bind target.
+func MissingHostDirs(p config.Preset, opts Options) []string {
+	all := append([]string{}, p.Mounts...)
+	all = append(all, opts.ExtraMounts...)
+
+	seen := map[string]bool{}
+	var missing []string
+	for _, m := range all {
+		host, _, _ := strings.Cut(m, ":")
+		host = expandTilde(host)
+		if host == "" || seen[host] {
+			continue
+		}
+		seen[host] = true
+		if _, err := os.Stat(host); err == nil {
+			continue
+		} else if !os.IsNotExist(err) {
+			continue // permission error etc. — leave it to docker to complain
+		}
+		// Heuristic: skip entries whose final segment looks like a filename
+		// (contains a '.'), e.g. ~/.ssh/config is a directory but
+		// ~/.gitconfig is a file. The common pattern in this tool is
+		// directory mounts for state; file mounts are rare. To stay safe,
+		// only skip if the basename starts with a dot AND has another dot
+		// later (e.g. "foo.json") — bare "~/.ssh" stays in.
+		base := filepath.Base(host)
+		if looksLikeFile(base) {
+			continue
+		}
+		missing = append(missing, host)
+	}
+	return missing
+}
+
+// looksLikeFile returns true for basenames that are almost certainly files
+// rather than directories (e.g. "config.yaml", "id_rsa.pub"). A single dot
+// at the very start (dotdir like ".ssh") does NOT count as a file marker.
+func looksLikeFile(base string) bool {
+	trimmed := strings.TrimPrefix(base, ".")
+	return strings.Contains(trimmed, ".")
+}
+
+// EnsureHostDirs prompts to create missing host-side mount directories.
+// On a TTY: list the paths and ask yes/no once. On decline, return an error.
+// Off a TTY: auto-create silently. stdout/stdin are used for the prompt.
+func EnsureHostDirs(missing []string, in io.Reader, out io.Writer) error {
+	if len(missing) == 0 {
+		return nil
+	}
+	if isTerminal(os.Stdin) {
+		fmt.Fprintln(out, "drun: the following mount paths do not exist on the host:")
+		for _, p := range missing {
+			fmt.Fprintf(out, "  %s\n", p)
+		}
+		fmt.Fprint(out, "Create them? [Y/n] ")
+		r := bufio.NewReader(in)
+		line, _ := r.ReadString('\n')
+		ans := strings.ToLower(strings.TrimSpace(line))
+		if ans != "" && ans != "y" && ans != "yes" {
+			return fmt.Errorf("aborted: missing mount paths not created")
+		}
+	}
+	for _, p := range missing {
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			return fmt.Errorf("create %s: %w", p, err)
+		}
+	}
+	return nil
 }

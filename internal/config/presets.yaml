@@ -53,6 +53,7 @@ opencode:
   mounts:
     - ~/.config/opencode:/home/user/.config/opencode
     - ~/.local/share/opencode:/home/user/.local/share/opencode
+    - ~/.local/state/opencode:/home/user/.local/state/opencode
     - ~/.cache/opencode:/home/user/.cache/opencode
     - ~/.gitconfig:/home/user/.gitconfig:ro
 
