@@ -59,6 +59,8 @@ func TestTagChangesWithInputs(t *testing.T) {
 		{Image: "alpine", Layer: map[string][]string{"apk": {"jq", "curl"}}},             // pkg added
 		{Image: "alpine", Layer: map[string][]string{"apt": {"jq"}}},                     // pm change
 		{Image: "alpine", Home: "/home/user", Layer: map[string][]string{"apk": {"jq"}}}, // home change
+		{Image: "alpine", Home: "/home/user", Layer: map[string][]string{"apk": {"jq"}}, // mount change
+			Mounts: []string{"~/.config/x:/home/user/.config/x"}},
 	}
 	for i, d := range diffs {
 		if Tag("x", d) == baseTag {
@@ -85,6 +87,63 @@ func TestDockerfile(t *testing.T) {
 	}
 	if !strings.Contains(df, "mkdir -p /home/user") || !strings.Contains(df, "chmod 777 /home/user") {
 		t.Errorf("missing home setup; got:\n%s", df)
+	}
+}
+
+func TestDockerfilePrecreatesMountParents(t *testing.T) {
+	p := config.Preset{
+		Image: "alpine:3.20",
+		Home:  "/home/user",
+		Mounts: []string{
+			"~/.config/opencode:/home/user/.config/opencode",
+			"~/.local/share/opencode:/home/user/.local/share/opencode",
+			"~/.local/state/opencode:/home/user/.local/state/opencode",
+			"~/.cache/opencode:/home/user/.cache/opencode",
+			"~/.gitconfig:/home/user/.gitconfig:ro",
+		},
+	}
+	df := Dockerfile(p)
+	// Every bind-mount parent under $HOME must be pre-created so Docker
+	// doesn't auto-create them as root:root 0755.
+	for _, want := range []string{
+		"/home/user/.config",
+		"/home/user/.local",
+		"/home/user/.local/share",
+		"/home/user/.local/state",
+		"/home/user/.cache",
+	} {
+		if !strings.Contains(df, want) {
+			t.Errorf("expected parent dir %q in Dockerfile; got:\n%s", want, df)
+		}
+	}
+	// Must still chmod 777 them so any -u uid can write.
+	if !strings.Contains(df, "chmod 777 ") {
+		t.Errorf("missing chmod 777 line; got:\n%s", df)
+	}
+	// File-bind's directory (/home/user, == Home) must not be duplicated.
+	// A naive implementation might emit it twice; verify there's exactly one
+	// "mkdir -p" line and it mentions /home/user once.
+	lines := strings.Split(df, "\n")
+	mkdirLines := 0
+	for _, l := range lines {
+		if strings.Contains(l, "mkdir -p") {
+			mkdirLines++
+		}
+	}
+	if mkdirLines != 1 {
+		t.Errorf("expected exactly 1 mkdir -p line, got %d; df:\n%s", mkdirLines, df)
+	}
+}
+
+func TestDockerfileIgnoresMountsOutsideHome(t *testing.T) {
+	p := config.Preset{
+		Image:  "alpine",
+		Home:   "/home/user",
+		Mounts: []string{"~/.aws:/root/.aws"},
+	}
+	df := Dockerfile(p)
+	if strings.Contains(df, "/root") {
+		t.Errorf("mount outside $HOME leaked into mkdir list:\n%s", df)
 	}
 }
 

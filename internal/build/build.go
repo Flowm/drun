@@ -51,6 +51,16 @@ func hash(p config.Preset) string {
 		b.WriteString(strings.Join(pkgs, ","))
 		b.WriteString("\n")
 	}
+
+	// Include parent dirs of mount targets under Home so changes to mount
+	// layout invalidate the cached layer image.
+	parents := mountParentDirs(p)
+	for _, d := range parents {
+		b.WriteString("mp:")
+		b.WriteString(d)
+		b.WriteString("\n")
+	}
+
 	sum := sha256.Sum256([]byte(b.String()))
 	return hex.EncodeToString(sum[:])[:12]
 }
@@ -72,9 +82,60 @@ func Dockerfile(p config.Preset) string {
 	}
 
 	if p.Home != "" {
-		fmt.Fprintf(&b, "RUN mkdir -p %s && chmod 777 %s\n", p.Home, p.Home)
+		// Pre-create $HOME plus every parent directory of each bind-mount
+		// target under $HOME, with mode 0777 so any uid selected at `docker
+		// run` time (via -u) can write there. Without this, Docker's daemon
+		// auto-creates missing bind-mount parents as root:root 0755, leaving
+		// the unprivileged container user unable to write siblings under
+		// e.g. /home/user/.config or /home/user/.cache.
+		dirs := append([]string{p.Home}, mountParentDirs(p)...)
+		fmt.Fprintf(&b, "RUN mkdir -p %s && chmod 777 %s\n",
+			strings.Join(dirs, " "), strings.Join(dirs, " "))
 	}
 	return b.String()
+}
+
+// mountParentDirs returns the sorted, de-duplicated set of container-side
+// parent directories of every mount target that lives under p.Home. The Home
+// dir itself is excluded (callers add it separately). Only directory-style
+// mounts contribute; file mounts like "~/.gitconfig:/home/user/.gitconfig:ro"
+// contribute their containing directory as well, since that directory must
+// exist for the file bind.
+func mountParentDirs(p config.Preset) []string {
+	if p.Home == "" {
+		return nil
+	}
+	home := strings.TrimRight(p.Home, "/")
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range p.Mounts {
+		// Mount spec: host:container[:opts]. Split off host, then take
+		// the container-side path.
+		_, rest, ok := strings.Cut(m, ":")
+		if !ok {
+			continue
+		}
+		ctr, _, _ := strings.Cut(rest, ":")
+		if ctr == "" {
+			continue
+		}
+		parent := filepath.Dir(ctr)
+		// Walk up to (but not including) Home, collecting every
+		// intermediate directory.
+		for parent != "." && parent != "/" && parent != home {
+			if strings.HasPrefix(parent, home+"/") {
+				if !seen[parent] {
+					seen[parent] = true
+					out = append(out, parent)
+				}
+			} else {
+				break
+			}
+			parent = filepath.Dir(parent)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func installCmd(pm string, pkgs []string) string {
