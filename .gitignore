@@ -1,0 +1,22 @@
+# Build output
+/bin/
+
+# Go
+*.exe
+*.exe~
+*.test
+*.out
+coverage.*
+
+# Editor/IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ephemeral
+tmp/

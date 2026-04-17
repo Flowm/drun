@@ -1,0 +1,82 @@
+aws:
+  image: amazon/aws-cli:2.17.0
+  mounts: [~/.aws:/root/.aws]
+  user: default
+
+dive:
+  image: wagoodman/dive:latest
+  docker_socket: true
+  user: default
+
+gdal:
+  image: ghcr.io/osgeo/gdal:alpine-small-latest
+
+go:
+  image: golang:1.25-alpine
+  entrypoint: go
+  env:
+    GOPATH: /cwd/.go
+    GOCACHE: /cwd/.go/cache
+
+hadolint:
+  image: hadolint/hadolint:latest-alpine
+  entrypoint: hadolint
+
+jq:
+  image: alpine:3.22
+  layer:
+    apk: [jq]
+  entrypoint: jq
+
+mc:
+  image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+  mounts: [~/.mc:/.mc]
+
+mitmproxy:
+  image: mitmproxy/mitmproxy:latest
+  entrypoint: mitmweb
+  args: [--web-host, 0.0.0.0]
+  ports: [2080:8080, 127.0.0.1:2081:8081]
+  mounts: [~/.mitmproxy:/home/mitmproxy/.mitmproxy]
+  user: default
+
+node:
+  image: node:22-alpine
+  entrypoint: node
+
+opencode:
+  image: ghcr.io/anomalyco/opencode
+  layer:
+    apk: [git, nodejs, npm, go]
+  home: /home/user
+  entrypoint: opencode
+  mounts:
+    - ~/.config/opencode:/home/user/.config/opencode
+    - ~/.local/share/opencode:/home/user/.local/share/opencode
+    - ~/.cache/opencode:/home/user/.cache/opencode
+    - ~/.gitconfig:/home/user/.gitconfig:ro
+
+pandoc:
+  image: pandoc/core:3.5
+  entrypoint: pandoc
+
+python:
+  image: python:3.13-alpine
+  entrypoint: python
+
+rclone:
+  image: rclone/rclone:latest
+  mounts: [~/.config/rclone:/config/rclone]
+
+shellcheck:
+  image: koalaman/shellcheck:v0.11.0
+
+terraform:
+  image: hashicorp/terraform:1.9
+  entrypoint: terraform
+
+updatecli:
+  image: ghcr.io/updatecli/updatecli:latest
+
+yq:
+  image: mikefarah/yq:4
