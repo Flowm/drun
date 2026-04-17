@@ -34,6 +34,24 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+kos:
+  - id: drun
+    build: drun
+    repositories:
+      - ghcr.io/flowm/drun
+    tags:
+      - "{{.Version}}"
+      - "v{{.Version}}"
+      - "{{if not .Prerelease}}latest{{end}}"
+    bare: true
+    preserve_import_paths: false
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    sbom: spdx
+    creation_time: "{{.CommitTimestamp}}"
+    ko_data_creation_time: "{{.CommitTimestamp}}"
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 

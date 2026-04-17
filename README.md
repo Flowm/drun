@@ -194,7 +194,13 @@ git push origin v0.1.0
 
 The workflow (`.github/workflows/release.yml`) produces linux/darwin amd64 +
 arm64 tarballs, a checksums file, and an auto-generated changelog on the
-GitHub release. Configuration lives in `.goreleaser.yaml`.
+GitHub release. It also publishes a multi-arch container image
+(`ghcr.io/flowm/drun`) built with [ko](https://ko.build). Configuration
+lives in `.goreleaser.yaml`.
+
+Note: the container image is only useful where the container has access to a
+docker socket (bind-mounted or docker-in-docker); drun shells out to the
+`docker` CLI.
 
 ## Motivation
 
