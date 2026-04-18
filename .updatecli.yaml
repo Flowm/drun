@@ -1,0 +1,8 @@
+name: Update preset container images
+
+autodiscovery:
+  crawlers:
+    dockercompose:
+      rootdir: internal/config
+      filematch:
+        - presets.yaml

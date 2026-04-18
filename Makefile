@@ -10,7 +10,7 @@ COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf none)
 DATE       ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf unknown)
 LDFLAGS    ?= -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
-.PHONY: all build install uninstall run fmt vet tidy test clean help
+.PHONY: all build install uninstall run update-presets fmt vet tidy test clean help
 
 all: build
 
@@ -31,6 +31,10 @@ uninstall:
 ## run: Build and run (pass args with ARGS="...")
 run: build
 	./$(BIN) $(ARGS)
+
+## update-presets: Build and update preset image versions (pass ARGS to updatecli)
+update-presets: build
+	./$(BIN) updatecli apply --config .updatecli.yaml $(ARGS)
 
 ## fmt: Format all Go sources
 fmt:
