@@ -104,12 +104,9 @@ func (p Preset) Validate(name string) error {
 	if p.Image == "" {
 		return fmt.Errorf("preset %q: image is required", name)
 	}
-	if len(p.Layer) > 1 {
-		return fmt.Errorf("preset %q: only one package manager allowed in layer", name)
-	}
 	for pm := range p.Layer {
 		switch pm {
-		case "apk", "apt", "dnf":
+		case "apk", "apt", "dnf", "npm":
 		default:
 			return fmt.Errorf("preset %q: unsupported package manager %q", name, pm)
 		}

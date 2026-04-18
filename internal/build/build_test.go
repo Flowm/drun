@@ -173,6 +173,22 @@ func TestDockerfileAptDnf(t *testing.T) {
 	}
 }
 
+func TestDockerfileNpmAndApk(t *testing.T) {
+	df := Dockerfile(config.Preset{
+		Image: "node:25-alpine",
+		Layer: map[string][]string{
+			"apk": {"git"},
+			"npm": {"@openai/codex"},
+		},
+	})
+	if !strings.Contains(df, "apk add --no-cache git") {
+		t.Errorf("apk install missing from dockerfile:\n%s", df)
+	}
+	if !strings.Contains(df, "npm install -g @openai/codex") {
+		t.Errorf("npm install missing from dockerfile:\n%s", df)
+	}
+}
+
 func TestDockerfileNoLayer(t *testing.T) {
 	df := Dockerfile(config.Preset{Image: "alpine"})
 	if strings.Contains(df, "RUN ") {

@@ -100,9 +100,10 @@ services:
     ports: [host:container, ...]
     user: default                   # "default" = omit --user; otherwise uid:gid
     x-drun-layer:                   # optional; triggers image build
-      apk: [pkg, ...]               # pick one package manager
+      apk: [pkg, ...]
       apt: [pkg, ...]
       dnf: [pkg, ...]
+      npm: [pkg, ...]               # global npm packages; can be combined with OS packages
 ```
 
 ## Config locations
@@ -120,6 +121,7 @@ Run a shipped preset:
 drun shellcheck script.sh
 drun go build ./...
 drun gdal gdalinfo some.tif
+drun ripgrep TODO .
 ```
 
 Run a preset with a tool layer (builds `drun/opencode:<hash>` on first use):
@@ -191,7 +193,7 @@ services:
       - ~/.local/share/opencode:/home/user/.local/share/opencode
       - ~/.cache/opencode:/home/user/.cache/opencode
     x-drun-layer:
-      apk: [git, nodejs, npm, ripgrep]   # added ripgrep
+      apk: [git, npm]
 ```
 
 ## Layout

@@ -147,6 +147,8 @@ func installCmd(pm string, pkgs []string) string {
 			" && rm -rf /var/lib/apt/lists/*"
 	case "dnf":
 		return "dnf install -y " + joined + " && dnf clean all"
+	case "npm":
+		return "npm install -g " + joined
 	}
 	return "false"
 }

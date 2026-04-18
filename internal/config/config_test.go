@@ -14,8 +14,9 @@ func TestValidate(t *testing.T) {
 	}{
 		{"ok-minimal", Preset{Image: "alpine"}, false},
 		{"ok-with-apk", Preset{Image: "alpine", Layer: map[string][]string{"apk": {"jq"}}}, false},
+		{"ok-with-npm", Preset{Image: "node", Layer: map[string][]string{"npm": {"@openai/codex"}}}, false},
+		{"ok-with-mixed-layer", Preset{Image: "node", Layer: map[string][]string{"apk": {"git"}, "npm": {"@openai/codex"}}}, false},
 		{"missing-image", Preset{}, true},
-		{"two-pms", Preset{Image: "alpine", Layer: map[string][]string{"apk": {"jq"}, "apt": {"jq"}}}, true},
 		{"unknown-pm", Preset{Image: "alpine", Layer: map[string][]string{"pacman": {"jq"}}}, true},
 	}
 	for _, tc := range tests {

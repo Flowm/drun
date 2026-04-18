@@ -5,6 +5,30 @@ services:
       - ~/.aws:/root/.aws
     user: default
 
+  claude:
+    image: node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4
+    entrypoint: claude
+    environment:
+      HOME: /home/user
+    volumes:
+      - ~/.claude:/home/user/.claude
+      - ~/.gitconfig:/home/user/.gitconfig:ro
+    x-drun-layer:
+      apk: [git]
+      npm: ['@anthropic-ai/claude-code']
+
+  codex:
+    image: node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4
+    entrypoint: codex
+    environment:
+      HOME: /home/user
+    volumes:
+      - ~/.codex:/home/user/.codex
+      - ~/.gitconfig:/home/user/.gitconfig:ro
+    x-drun-layer:
+      apk: [git]
+      npm: ['@openai/codex']
+
   dive:
     image: wagoodman/dive:v0.13.1@sha256:f1886e6c32c094fc41a623c1989f5cb3e48aa766da5f0be233f911fc1d85ce10
     user: default
@@ -63,6 +87,12 @@ services:
 
   python:
     image: python:3.14-alpine@sha256:dd4d2bd5b53d9b25a51da13addf2be586beebd5387e289e798e4083d94ca837a
+
+  ripgrep:
+    image: alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+    entrypoint: rg
+    x-drun-layer:
+      apk: [ripgrep]
 
   rclone:
     image: rclone/rclone:1.73.4@sha256:654f6517c7aaec7e377690b2caf7c272dbe5f3b8200afbc14a00df6b4a9aa6ef
