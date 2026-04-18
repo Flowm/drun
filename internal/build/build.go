@@ -67,6 +67,10 @@ func hash(p config.Preset) string {
 
 // Dockerfile renders the Dockerfile contents for a preset.
 func Dockerfile(p config.Preset) string {
+	return dockerfile(p, "")
+}
+
+func dockerfile(p config.Preset, runtimeUser string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "FROM %s\n", p.Image)
 	b.WriteString("USER 0:0\n")
@@ -82,25 +86,20 @@ func Dockerfile(p config.Preset) string {
 	}
 
 	if p.Home != "" {
-		// Pre-create $HOME plus every parent directory of each bind-mount
-		// target under $HOME, with mode 0777 so any uid selected at `docker
-		// run` time (via -u) can write there. Without this, Docker's daemon
-		// auto-creates missing bind-mount parents as root:root 0755, leaving
-		// the unprivileged container user unable to write siblings under
-		// e.g. /home/user/.config or /home/user/.cache.
+		// Pre-create $HOME and bind-mount parents under it with mode 0777 so
+		// Docker does not auto-create them as root-owned 0755 for arbitrary uids.
 		dirs := append([]string{p.Home}, mountParentDirs(p)...)
 		fmt.Fprintf(&b, "RUN mkdir -p %s && chmod 777 %s\n",
 			strings.Join(dirs, " "), strings.Join(dirs, " "))
 	}
+	if runtimeUser != "" {
+		fmt.Fprintf(&b, "USER %s\n", runtimeUser)
+	}
 	return b.String()
 }
 
-// mountParentDirs returns the sorted, de-duplicated set of container-side
-// parent directories of every mount target that lives under p.Home. The Home
-// dir itself is excluded (callers add it separately). Only directory-style
-// mounts contribute; file mounts like "~/.gitconfig:/home/user/.gitconfig:ro"
-// contribute their containing directory as well, since that directory must
-// exist for the file bind.
+// mountParentDirs returns sorted, unique parent dirs for mount targets under
+// p.Home, excluding p.Home itself.
 func mountParentDirs(p config.Preset) []string {
 	if p.Home == "" {
 		return nil
@@ -176,6 +175,10 @@ func EnsureImage(name string, p config.Preset, force bool) (string, error) {
 	if !force && ImageExists(tag) {
 		return tag, nil
 	}
+	runtimeUser, err := runtimeUserForBuild(p)
+	if err != nil {
+		return "", err
+	}
 	dir, err := os.MkdirTemp("", "drun-build-*")
 	if err != nil {
 		return "", err
@@ -183,7 +186,7 @@ func EnsureImage(name string, p config.Preset, force bool) (string, error) {
 	defer os.RemoveAll(dir)
 
 	dfPath := filepath.Join(dir, "Dockerfile")
-	if err := os.WriteFile(dfPath, []byte(Dockerfile(p)), 0o644); err != nil {
+	if err := os.WriteFile(dfPath, []byte(dockerfile(p, runtimeUser)), 0o644); err != nil {
 		return "", err
 	}
 
@@ -199,9 +202,24 @@ func EnsureImage(name string, p config.Preset, force bool) (string, error) {
 // PrintBuild emits what EnsureImage would do without running it.
 func PrintBuild(name string, p config.Preset) {
 	tag := Tag(name, p)
+	runtimeUser, err := runtimeUserForBuild(p)
+	if err != nil {
+		runtimeUser = ""
+	}
 	fmt.Fprintf(os.Stdout, "# would build %s\n", tag)
 	fmt.Fprintln(os.Stdout, "# Dockerfile:")
-	for _, line := range strings.Split(strings.TrimRight(Dockerfile(p), "\n"), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(dockerfile(p, runtimeUser), "\n"), "\n") {
 		fmt.Fprintf(os.Stdout, "#   %s\n", line)
 	}
+}
+
+func runtimeUserForBuild(p config.Preset) (string, error) {
+	if p.User != "default" {
+		return "", nil
+	}
+	out, err := exec.Command("docker", "image", "inspect", "--format", "{{.Config.User}}", p.Image).Output()
+	if err != nil {
+		return "", fmt.Errorf("inspect base image user for %s: %w", p.Image, err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }

@@ -90,6 +90,17 @@ func TestDockerfile(t *testing.T) {
 	}
 }
 
+func TestDockerfileRestoresRuntimeUser(t *testing.T) {
+	p := config.Preset{
+		Image: "alpine:3.20",
+		Layer: map[string][]string{"apk": {"jq"}},
+	}
+	df := dockerfile(p, "1000:1000")
+	if !strings.Contains(df, "USER 0:0\nRUN apk add --no-cache jq\nUSER 1000:1000\n") {
+		t.Fatalf("expected Dockerfile to restore runtime user; got:\n%s", df)
+	}
+}
+
 func TestDockerfilePrecreatesMountParents(t *testing.T) {
 	p := config.Preset{
 		Image: "alpine:3.20",

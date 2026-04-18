@@ -159,23 +159,6 @@ func TestPrintQuoting(t *testing.T) {
 	}
 }
 
-func TestLooksLikeFile(t *testing.T) {
-	cases := map[string]bool{
-		".ssh":        false,
-		".config":     false,
-		"opencode":    false,
-		"config.yaml": true,
-		".bashrc":     false, // leading-dot-only
-		".git.conf":   true,  // leading dot + extension
-		"id_rsa.pub":  true,
-	}
-	for in, want := range cases {
-		if got := looksLikeFile(in); got != want {
-			t.Errorf("looksLikeFile(%q) = %v, want %v", in, got, want)
-		}
-	}
-}
-
 func TestMissingHostDirs(t *testing.T) {
 	dir := t.TempDir()
 	existing := filepath.Join(dir, "exists")
@@ -183,21 +166,20 @@ func TestMissingHostDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 	missingDir := filepath.Join(dir, "missing")
-	missingFileLike := filepath.Join(dir, "looks.like.file")
+	missingFile := filepath.Join(dir, ".gitconfig")
 
 	p := config.Preset{
 		Image: "alpine",
 		Mounts: []string{
 			existing + ":/c/exists",
 			missingDir + ":/c/missing",
-			missingFileLike + ":/c/file:ro",
+			missingFile + ":/c/file:ro",
 		},
 	}
 	got := MissingHostDirs(p, Options{ExtraMounts: []string{missingDir + ":/c/dup"}})
-	// Only the plain missing dir should be reported; the file-looking path
-	// is skipped and duplicates are deduped.
-	if len(got) != 1 || got[0] != missingDir {
-		t.Fatalf("MissingHostDirs = %v, want [%s]", got, missingDir)
+	// Missing paths are reported as-is and duplicates are deduped.
+	if len(got) != 2 || got[0] != missingDir || got[1] != missingFile {
+		t.Fatalf("MissingHostDirs = %v, want [%s %s]", got, missingDir, missingFile)
 	}
 }
 
