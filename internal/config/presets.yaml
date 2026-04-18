@@ -13,20 +13,17 @@ gdal:
 
 go:
   image: golang:1.25-alpine
-  entrypoint: go
   env:
     GOPATH: /cwd/.go
     GOCACHE: /cwd/.go/cache
 
 hadolint:
   image: hadolint/hadolint:latest-alpine
-  entrypoint: hadolint
 
 jq:
   image: alpine:3.22
   layer:
     apk: [jq]
-  entrypoint: jq
 
 mc:
   image: minio/mc:RELEASE.2025-08-13T08-35-41Z
@@ -42,14 +39,12 @@ mitmproxy:
 
 node:
   image: node:22-alpine
-  entrypoint: node
 
 opencode:
   image: ghcr.io/anomalyco/opencode
   layer:
-    apk: [git, nodejs, npm, go]
+    apk: [git, nodejs, npm, go, make]
   home: /home/user
-  entrypoint: opencode
   mounts:
     - ~/.config/opencode:/home/user/.config/opencode
     - ~/.local/share/opencode:/home/user/.local/share/opencode
@@ -59,11 +54,9 @@ opencode:
 
 pandoc:
   image: pandoc/core:3.5
-  entrypoint: pandoc
 
 python:
   image: python:3.13-alpine
-  entrypoint: python
 
 rclone:
   image: rclone/rclone:latest
@@ -74,7 +67,6 @@ shellcheck:
 
 terraform:
   image: hashicorp/terraform:1.9
-  entrypoint: terraform
 
 updatecli:
   image: ghcr.io/updatecli/updatecli:latest
