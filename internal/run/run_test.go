@@ -80,24 +80,23 @@ func TestAssembleExtraArgsAndPresetArgs(t *testing.T) {
 	p := config.Preset{
 		Image:      "alpine",
 		Entrypoint: "sh",
-		Args:       []string{"-c"},
+		Command:    []string{"-c"},
 	}
 	args := Assemble("alpine", p, Options{}, "alpine", []string{"echo", "hi"})
 	containsSeq(t, args, "--entrypoint", "sh")
-	// After the image, preset.Args come first then extraArgs.
+	// After the image, preset.Command comes first then extraArgs.
 	containsSeq(t, args, "alpine", "-c", "echo", "hi")
 }
 
 func TestAssembleOverrides(t *testing.T) {
 	p := config.Preset{Image: "alpine", Entrypoint: "sh", User: "default", Home: "/old"}
 	args := Assemble("alpine", p, Options{
-		Entrypoint:   "bash",
-		User:         "0:0",
-		Home:         "/new",
-		ExtraMounts:  []string{"/host:/container"},
-		ExtraPorts:   []string{"8080:80"},
-		ExtraEnv:     map[string]string{"K": "V"},
-		DockerSocket: true,
+		Entrypoint:  "bash",
+		User:        "0:0",
+		Home:        "/new",
+		ExtraMounts: []string{"/host:/container", "/var/run/docker.sock:/var/run/docker.sock"},
+		ExtraPorts:  []string{"8080:80"},
+		ExtraEnv:    map[string]string{"K": "V"},
 	}, "alpine", nil)
 
 	containsSeq(t, args, "--entrypoint", "bash")

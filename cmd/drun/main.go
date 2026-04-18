@@ -212,7 +212,11 @@ func cmdRun(presets config.Presets, f *flags) error {
 // applyOptionsToPreset folds CLI-derived fields into the preset so the run
 // assembly only needs to consult one struct.
 func applyOptionsToPreset(p *config.Preset, opts run.Options) {
-	p.Mounts = append(p.Mounts, opts.ExtraMounts...)
+	for _, mount := range opts.ExtraMounts {
+		if !containsString(p.Mounts, mount) {
+			p.Mounts = append(p.Mounts, mount)
+		}
+	}
 	p.Ports = append(p.Ports, opts.ExtraPorts...)
 	if p.Env == nil && len(opts.ExtraEnv) > 0 {
 		p.Env = map[string]string{}
@@ -229,9 +233,6 @@ func applyOptionsToPreset(p *config.Preset, opts run.Options) {
 	if opts.Home != "" {
 		p.Home = opts.Home
 	}
-	if opts.DockerSocket {
-		p.DockerSocket = true
-	}
 	if len(opts.ExtraLayers) > 0 {
 		if p.Layer == nil {
 			p.Layer = map[string][]string{}
@@ -244,12 +245,14 @@ func applyOptionsToPreset(p *config.Preset, opts run.Options) {
 
 func flagsToOptions(f *flags) (run.Options, error) {
 	opts := run.Options{
-		ExtraMounts:  f.mounts,
-		ExtraPorts:   f.ports,
-		Entrypoint:   f.entrypoint,
-		User:         f.user,
-		Home:         f.home,
-		DockerSocket: f.dockerSocket,
+		ExtraMounts: f.mounts,
+		ExtraPorts:  f.ports,
+		Entrypoint:  f.entrypoint,
+		User:        f.user,
+		Home:        f.home,
+	}
+	if f.dockerSocket {
+		opts.ExtraMounts = append(opts.ExtraMounts, "/var/run/docker.sock:/var/run/docker.sock")
 	}
 	if len(f.envs) > 0 {
 		opts.ExtraEnv = map[string]string{}
@@ -272,6 +275,15 @@ func flagsToOptions(f *flags) (run.Options, error) {
 		}
 	}
 	return opts, nil
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func parseArgs(argv []string) (*flags, error) {

@@ -14,34 +14,37 @@ var embeddedPresets []byte
 
 // Preset describes how to run a container.
 type Preset struct {
-	Image        string              `yaml:"image"`
-	Layer        map[string][]string `yaml:"layer,omitempty"`
-	Home         string              `yaml:"home,omitempty"`
-	Mounts       []string            `yaml:"mounts,omitempty"`
-	Env          map[string]string   `yaml:"env,omitempty"`
-	Ports        []string            `yaml:"ports,omitempty"`
-	Entrypoint   string              `yaml:"entrypoint,omitempty"`
-	Args         []string            `yaml:"args,omitempty"`
-	DockerSocket bool                `yaml:"docker_socket,omitempty"`
-	User         string              `yaml:"user,omitempty"`
+	Image      string              `yaml:"image"`
+	Layer      map[string][]string `yaml:"x-drun-layer,omitempty"`
+	Home       string              `yaml:"-"`
+	Mounts     []string            `yaml:"volumes,omitempty"`
+	Env        map[string]string   `yaml:"environment,omitempty"`
+	Ports      []string            `yaml:"ports,omitempty"`
+	Entrypoint string              `yaml:"entrypoint,omitempty"`
+	Command    []string            `yaml:"command,omitempty"`
+	User       string              `yaml:"user,omitempty"`
 }
 
 // Presets is the full keyed collection.
 type Presets map[string]Preset
 
+type composeFile struct {
+	Services map[string]Preset `yaml:"services"`
+}
+
 // Load merges the embedded defaults with the user's config at
 // ~/.config/drun/presets.yaml (full replacement on name collision).
 func Load() (Presets, error) {
-	out := Presets{}
-	if err := yaml.Unmarshal(embeddedPresets, &out); err != nil {
+	out, err := loadComposePresets(embeddedPresets)
+	if err != nil {
 		return nil, fmt.Errorf("parse embedded presets: %w", err)
 	}
 
 	userPath, err := userConfigPath()
 	if err == nil {
 		if data, err := os.ReadFile(userPath); err == nil {
-			user := Presets{}
-			if err := yaml.Unmarshal(data, &user); err != nil {
+			user, err := loadComposePresets(data)
+			if err != nil {
 				return nil, fmt.Errorf("parse %s: %w", userPath, err)
 			}
 			for k, v := range user {
@@ -52,6 +55,37 @@ func Load() (Presets, error) {
 		}
 	}
 	return out, nil
+}
+
+func loadComposePresets(data []byte) (Presets, error) {
+	var doc composeFile
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	if len(doc.Services) == 0 {
+		return nil, fmt.Errorf("services is required")
+	}
+	out := make(Presets, len(doc.Services))
+	for name, preset := range doc.Services {
+		preset.normalize()
+		out[name] = preset
+	}
+	return out, nil
+}
+
+func (p *Preset) normalize() {
+	if len(p.Env) == 0 {
+		return
+	}
+	home, ok := p.Env["HOME"]
+	if !ok {
+		return
+	}
+	p.Home = home
+	delete(p.Env, "HOME")
+	if len(p.Env) == 0 {
+		p.Env = nil
+	}
 }
 
 func userConfigPath() (string, error) {

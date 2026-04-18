@@ -1,75 +1,82 @@
-aws:
-  image: amazon/aws-cli:2.17.0
-  mounts: [~/.aws:/root/.aws]
-  user: default
+services:
+  aws:
+    image: amazon/aws-cli:2.17.0
+    volumes:
+      - ~/.aws:/root/.aws
+    user: default
 
-dive:
-  image: wagoodman/dive:latest
-  docker_socket: true
-  user: default
+  dive:
+    image: wagoodman/dive:latest
+    user: default
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
-gdal:
-  image: ghcr.io/osgeo/gdal:alpine-small-latest
+  gdal:
+    image: ghcr.io/osgeo/gdal:alpine-small-latest
 
-go:
-  image: golang:1.25-alpine
-  env:
-    GOPATH: /cwd/.go
-    GOCACHE: /cwd/.go/cache
+  go:
+    image: golang:1.25-alpine
+    environment:
+      GOPATH: /cwd/.go
+      GOCACHE: /cwd/.go/cache
 
-hadolint:
-  image: hadolint/hadolint:latest-alpine
+  hadolint:
+    image: hadolint/hadolint:latest-alpine
 
-jq:
-  image: alpine:3.22
-  layer:
-    apk: [jq]
+  jq:
+    image: alpine:3.22
+    x-drun-layer:
+      apk: [jq]
 
-mc:
-  image: minio/mc:RELEASE.2025-08-13T08-35-41Z
-  mounts: [~/.mc:/.mc]
+  mc:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    volumes:
+      - ~/.mc:/.mc
 
-mitmproxy:
-  image: mitmproxy/mitmproxy:latest
-  entrypoint: mitmweb
-  args: [--web-host, 0.0.0.0]
-  ports: [2080:8080, 127.0.0.1:2081:8081]
-  mounts: [~/.mitmproxy:/home/mitmproxy/.mitmproxy]
-  user: default
+  mitmproxy:
+    image: mitmproxy/mitmproxy:latest
+    entrypoint: mitmweb
+    command: [--web-host, 0.0.0.0]
+    ports: [2080:8080, 127.0.0.1:2081:8081]
+    volumes:
+      - ~/.mitmproxy:/home/mitmproxy/.mitmproxy
+    user: default
 
-node:
-  image: node:22-alpine
+  node:
+    image: node:22-alpine
 
-opencode:
-  image: ghcr.io/anomalyco/opencode
-  layer:
-    apk: [git, nodejs, npm, go, make]
-  home: /home/user
-  mounts:
-    - ~/.config/opencode:/home/user/.config/opencode
-    - ~/.local/share/opencode:/home/user/.local/share/opencode
-    - ~/.local/state/opencode:/home/user/.local/state/opencode
-    - ~/.cache/opencode:/home/user/.cache/opencode
-    - ~/.gitconfig:/home/user/.gitconfig:ro
+  opencode:
+    image: ghcr.io/anomalyco/opencode
+    environment:
+      HOME: /home/user
+    volumes:
+      - ~/.config/opencode:/home/user/.config/opencode
+      - ~/.local/share/opencode:/home/user/.local/share/opencode
+      - ~/.local/state/opencode:/home/user/.local/state/opencode
+      - ~/.cache/opencode:/home/user/.cache/opencode
+      - ~/.gitconfig:/home/user/.gitconfig:ro
+    x-drun-layer:
+      apk: [git, nodejs, npm, go, make]
 
-pandoc:
-  image: pandoc/core:3.5
+  pandoc:
+    image: pandoc/core:3.5
 
-python:
-  image: python:3.13-alpine
+  python:
+    image: python:3.13-alpine
 
-rclone:
-  image: rclone/rclone:latest
-  mounts: [~/.config/rclone:/config/rclone]
+  rclone:
+    image: rclone/rclone:latest
+    volumes:
+      - ~/.config/rclone:/config/rclone
 
-shellcheck:
-  image: koalaman/shellcheck:v0.11.0
+  shellcheck:
+    image: koalaman/shellcheck:v0.11.0
 
-terraform:
-  image: hashicorp/terraform:1.9
+  terraform:
+    image: hashicorp/terraform:1.9
 
-updatecli:
-  image: ghcr.io/updatecli/updatecli:latest
+  updatecli:
+    image: ghcr.io/updatecli/updatecli:latest
 
-yq:
-  image: mikefarah/yq:4
+  yq:
+    image: mikefarah/yq:4

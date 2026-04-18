@@ -53,15 +53,19 @@ func TestLoadUserOverride(t *testing.T) {
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Override a preset we expect to ship: pick any name from the embedded
-	// set and replace it. To keep the test robust we add a brand-new name
-	// and also override "shellcheck" if present.
+	// Override a preset we expect to ship and add a new one using the
+	// compose-style schema.
 	yaml := `
-mytool:
-  image: alpine
-  entrypoint: echo
-shellcheck:
-  image: example.com/override:latest
+services:
+  mytool:
+    image: alpine
+    entrypoint: echo
+    command: [hello]
+    environment:
+      HOME: /tmp/home
+      GREETING: hi
+  shellcheck:
+    image: example.com/override:latest
 `
 	if err := os.WriteFile(filepath.Join(cfgDir, "presets.yaml"), []byte(yaml), 0o644); err != nil {
 		t.Fatal(err)
@@ -78,10 +82,38 @@ shellcheck:
 	if got := ps["mytool"].Entrypoint; got != "echo" {
 		t.Errorf("mytool.entrypoint = %q, want echo", got)
 	}
+	if got := ps["mytool"].Command; len(got) != 1 || got[0] != "hello" {
+		t.Errorf("mytool.command = %v, want [hello]", got)
+	}
+	if got := ps["mytool"].Home; got != "/tmp/home" {
+		t.Errorf("mytool.home = %q, want /tmp/home", got)
+	}
+	if got := ps["mytool"].Env["GREETING"]; got != "hi" {
+		t.Errorf("mytool.env[GREETING] = %q, want hi", got)
+	}
+	if _, ok := ps["mytool"].Env["HOME"]; ok {
+		t.Error("mytool.env should not retain HOME after normalization")
+	}
 	if sc, ok := ps["shellcheck"]; ok {
 		if sc.Image != "example.com/override:latest" {
 			t.Errorf("shellcheck override not applied: %q", sc.Image)
 		}
+	}
+}
+
+func TestLoadUserMissingServices(t *testing.T) {
+	dir := t.TempDir()
+	cfgDir := filepath.Join(dir, "drun")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "presets.yaml"), []byte("jq:\n  image: alpine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error for missing services key")
 	}
 }
 

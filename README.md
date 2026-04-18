@@ -7,7 +7,7 @@ A preset-driven wrapper around `docker run` for ad-hoc usage of tools.
 - YAML presets for common tools; ships with sensible defaults, overridable per user
 - Always runs as the host user (`--user $(id -u):$(id -g)`) so files stay yours
 - Current directory mounted at `/cwd` and set as the working dir by default
-- Transparent layering: declare extra packages and drun builds a local image on top of the base
+- Transparent layering: declare extra packages under `x-drun-layer` and drun builds a local image on top of the base
 - Ad-hoc mode: run any image with `-i <ref>` without writing a preset
 - Override any preset field from the CLI (image, mounts, env, ports, entrypoint, user, home)
 - `--print` for dry-runs, `--rebuild` to force a layer rebuild, `--prune` to clean up built images
@@ -79,29 +79,30 @@ Every run applies these defaults:
 - `-v $(pwd):/cwd -w /cwd`
 - `--user $(id -u):$(id -g)` unless the preset sets `user: default` or a specific uid:gid
 
-If the preset declares a `layer:`, drun builds a local image
+If the preset declares an `x-drun-layer:`, drun builds a local image
 `drun/<preset>:<hash>` once (installing the tools as root during the build),
 then always runs that image as the host user at runtime. The hash covers
-the base image, package manager, package list, and `home:`; change any of
-those and a new image is built on next use.
+the base image, package manager, package list, and `environment.HOME`; change
+any of those and a new image is built on next use.
 
 ## Preset schema
 
 ```yaml
-<name>:
-  image: <ref>                      # required
-  layer:                            # optional; triggers image build
-    apk:  [pkg, ...]                # pick one package manager
-    apt:  [pkg, ...]
-    dnf:  [pkg, ...]
-  home: /home/user                  # optional; ensures writable HOME
-  mounts: [host:container, ...]     # ~ expanded
-  env: {KEY: VAL, ...}
-  ports: [host:container, ...]
-  entrypoint: <cmd>
-  args: [default, args]
-  docker_socket: false
-  user: default                     # "default" = omit --user; otherwise uid:gid
+services:
+  <name>:
+    image: <ref>                    # required
+    entrypoint: <cmd>
+    command: [default, args]
+    environment:
+      HOME: /home/user              # optional; ensures writable HOME
+      KEY: VAL
+    volumes: [host:container, ...]  # ~ expanded
+    ports: [host:container, ...]
+    user: default                   # "default" = omit --user; otherwise uid:gid
+    x-drun-layer:                   # optional; triggers image build
+      apk: [pkg, ...]               # pick one package manager
+      apt: [pkg, ...]
+      dnf: [pkg, ...]
 ```
 
 ## Config locations
@@ -173,22 +174,24 @@ drun --prune
 Example `~/.config/drun/presets.yaml` adding a new preset and overriding one:
 
 ```yaml
-jq:
-  image: alpine
-  layer:
-    apk: [jq]
-  entrypoint: jq
+services:
+  jq:
+    image: alpine
+    entrypoint: jq
+    x-drun-layer:
+      apk: [jq]
 
-opencode:
-  image: ghcr.io/anomalyco/opencode
-  layer:
-    apk: [git, nodejs, npm, ripgrep]   # added ripgrep
-  home: /home/user
-  entrypoint: opencode
-  mounts:
-    - ~/.config/opencode:/home/user/.config/opencode
-    - ~/.local/share/opencode:/home/user/.local/share/opencode
-    - ~/.cache/opencode:/home/user/.cache/opencode
+  opencode:
+    image: ghcr.io/anomalyco/opencode
+    entrypoint: opencode
+    environment:
+      HOME: /home/user
+    volumes:
+      - ~/.config/opencode:/home/user/.config/opencode
+      - ~/.local/share/opencode:/home/user/.local/share/opencode
+      - ~/.cache/opencode:/home/user/.cache/opencode
+    x-drun-layer:
+      apk: [git, nodejs, npm, ripgrep]   # added ripgrep
 ```
 
 ## Layout

@@ -18,14 +18,13 @@ import (
 
 // Options are fields that can be supplied from CLI to override or augment a preset.
 type Options struct {
-	ExtraMounts  []string
-	ExtraEnv     map[string]string
-	ExtraPorts   []string
-	Entrypoint   string // overrides preset.Entrypoint if non-empty
-	User         string // overrides preset.User if non-empty
-	Home         string // overrides preset.Home if non-empty
-	ExtraLayers  map[string][]string
-	DockerSocket bool // OR'd with preset.DockerSocket
+	ExtraMounts []string
+	ExtraEnv    map[string]string
+	ExtraPorts  []string
+	Entrypoint  string // overrides preset.Entrypoint if non-empty
+	User        string // overrides preset.User if non-empty
+	Home        string // overrides preset.Home if non-empty
+	ExtraLayers map[string][]string
 }
 
 var invalidContainerNameChars = regexp.MustCompile(`[^a-z0-9_.-]+`)
@@ -74,17 +73,13 @@ func Assemble(name string, p config.Preset, opts Options, image string, extraArg
 		args = append(args, "-p", port)
 	}
 
-	if p.DockerSocket || opts.DockerSocket {
-		args = append(args, "-v", "/var/run/docker.sock:/var/run/docker.sock")
-	}
-
 	entrypoint := firstNonEmpty(opts.Entrypoint, p.Entrypoint)
 	if entrypoint != "" {
 		args = append(args, "--entrypoint", entrypoint)
 	}
 
 	args = append(args, image)
-	args = append(args, p.Args...)
+	args = append(args, p.Command...)
 	args = append(args, extraArgs...)
 	return args
 }
