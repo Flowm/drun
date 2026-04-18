@@ -23,6 +23,21 @@ Or clone and `make install` (defaults to `~/.local/bin`).
 
 Requires `docker` on `$PATH`.
 
+## Container image
+
+Releases also publish `ghcr.io/flowm/drun`, which packages the `drun` binary together with the Docker CLI.
+
+`drun` shells out to `docker run`, so when `drun` itself is running inside a container it still needs a Docker daemon to talk to. Mounting `/var/run/docker.sock` lets the containerized `drun` process use the host Docker daemon.
+
+Use it directly like this:
+
+```
+docker run --rm ghcr.io/flowm/drun:latest --help
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/flowm/drun:latest opencode
+```
+
+For real runs, the container still needs access to a reachable Docker daemon, typically via `/var/run/docker.sock` as shown above.
+
 ## Help
 
 ```
@@ -199,10 +214,6 @@ arm64 tarballs, a checksums file, and an auto-generated changelog on the
 GitHub release. It also publishes a multi-arch container image
 (`ghcr.io/flowm/drun`) built with [ko](https://ko.build). Configuration
 lives in `.goreleaser.yaml`.
-
-Note: the container image is only useful where the container has access to a
-docker socket (bind-mounted or docker-in-docker); drun shells out to the
-`docker` CLI.
 
 ## Motivation
 

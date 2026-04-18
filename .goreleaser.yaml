@@ -37,6 +37,7 @@ checksum:
 kos:
   - id: drun
     build: drun
+    base_image: docker:cli
     repositories:
       - ghcr.io/flowm/drun
     tags:
