@@ -26,10 +26,14 @@ func containsSeq(t *testing.T, args []string, want ...string) {
 
 func TestAssembleDefaults(t *testing.T) {
 	p := config.Preset{Image: "alpine"}
-	args := Assemble(p, Options{}, "alpine", nil)
+	args := Assemble("alpine", p, Options{}, "alpine", nil)
 
 	if args[0] != "run" || args[1] != "--rm" {
 		t.Errorf("expected run --rm prefix, got %v", args[:2])
+	}
+	containsSeq(t, args, "--cap-drop=ALL", "--security-opt=no-new-privileges")
+	if !containsSeqString(args, "--name", "alpine-") {
+		t.Errorf("expected generated drun name, got %v", args)
 	}
 	// TTY flag depends on stdin; just assert one of them is present.
 	if !(contains(args, "-it") || contains(args, "-i")) {
@@ -49,7 +53,7 @@ func TestAssembleDefaults(t *testing.T) {
 func TestAssembleUserDefault(t *testing.T) {
 	// user: default means omit -u entirely
 	p := config.Preset{Image: "alpine", User: "default"}
-	args := Assemble(p, Options{}, "alpine", nil)
+	args := Assemble("alpine", p, Options{}, "alpine", nil)
 	if contains(args, "-u") {
 		t.Errorf("user:default should omit -u, got %v", args)
 	}
@@ -57,7 +61,7 @@ func TestAssembleUserDefault(t *testing.T) {
 
 func TestAssembleUserExplicit(t *testing.T) {
 	p := config.Preset{Image: "alpine", User: "1234:5678"}
-	args := Assemble(p, Options{}, "alpine", nil)
+	args := Assemble("alpine", p, Options{}, "alpine", nil)
 	containsSeq(t, args, "-u", "1234:5678")
 }
 
@@ -67,7 +71,7 @@ func TestAssembleHomeAndEnv(t *testing.T) {
 		Home:  "/home/user",
 		Env:   map[string]string{"FOO": "bar"},
 	}
-	args := Assemble(p, Options{}, "alpine", nil)
+	args := Assemble("alpine", p, Options{}, "alpine", nil)
 	containsSeq(t, args, "-e", "HOME=/home/user")
 	containsSeq(t, args, "-e", "FOO=bar")
 }
@@ -78,7 +82,7 @@ func TestAssembleExtraArgsAndPresetArgs(t *testing.T) {
 		Entrypoint: "sh",
 		Args:       []string{"-c"},
 	}
-	args := Assemble(p, Options{}, "alpine", []string{"echo", "hi"})
+	args := Assemble("alpine", p, Options{}, "alpine", []string{"echo", "hi"})
 	containsSeq(t, args, "--entrypoint", "sh")
 	// After the image, preset.Args come first then extraArgs.
 	containsSeq(t, args, "alpine", "-c", "echo", "hi")
@@ -86,7 +90,7 @@ func TestAssembleExtraArgsAndPresetArgs(t *testing.T) {
 
 func TestAssembleOverrides(t *testing.T) {
 	p := config.Preset{Image: "alpine", Entrypoint: "sh", User: "default", Home: "/old"}
-	args := Assemble(p, Options{
+	args := Assemble("alpine", p, Options{
 		Entrypoint:   "bash",
 		User:         "0:0",
 		Home:         "/new",
@@ -107,8 +111,23 @@ func TestAssembleOverrides(t *testing.T) {
 
 func TestAssembleMountsRO(t *testing.T) {
 	p := config.Preset{Image: "alpine", Mounts: []string{"/host:/container:ro"}}
-	args := Assemble(p, Options{}, "alpine", nil)
+	args := Assemble("alpine", p, Options{}, "alpine", nil)
 	containsSeq(t, args, "-v", "/host:/container:ro")
+}
+
+func TestUniqueContainerNameSanitizes(t *testing.T) {
+	if got := uniqueContainerName("OpenCode/AI Assistant"); !strings.HasPrefix(got, "opencode-ai-assistant-") {
+		t.Fatalf("containerName = %q", got)
+	}
+}
+
+func containsSeqString(args []string, marker string, prefix string) bool {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == marker && strings.HasPrefix(args[i+1], prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestExpandTilde(t *testing.T) {

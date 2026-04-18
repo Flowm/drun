@@ -59,6 +59,8 @@ Flags:
 Every run applies these defaults:
 
 - `--rm` and `-it` (or `-i` when stdin isn't a TTY)
+- `--cap-drop=ALL --security-opt=no-new-privileges`
+- `--name <preset>-<suffix>`
 - `-v $(pwd):/cwd -w /cwd`
 - `--user $(id -u):$(id -g)` unless the preset sets `user: default` or a specific uid:gid
 

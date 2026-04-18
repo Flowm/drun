@@ -196,7 +196,7 @@ func cmdRun(presets config.Presets, f *flags) error {
 		}
 	}
 
-	args := run.Assemble(p, run.Options{}, image, extra)
+	args := run.Assemble(name, p, run.Options{}, image, extra)
 	if f.printMode {
 		run.Print(args)
 		return nil

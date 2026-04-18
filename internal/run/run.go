@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/flowm/drun/internal/config"
 )
@@ -25,11 +28,16 @@ type Options struct {
 	DockerSocket bool // OR'd with preset.DockerSocket
 }
 
+var invalidContainerNameChars = regexp.MustCompile(`[^a-z0-9_.-]+`)
+
 // Assemble builds the docker run command for a preset + options.
+// name is used for the container name.
 // image is the image ref to run (either preset.Image or a built layer tag).
 // extraArgs are appended after the entrypoint.
-func Assemble(p config.Preset, opts Options, image string, extraArgs []string) []string {
+func Assemble(name string, p config.Preset, opts Options, image string, extraArgs []string) []string {
 	args := []string{"run", "--rm"}
+	args = append(args, "--cap-drop=ALL", "--security-opt=no-new-privileges")
+	args = append(args, "--name", uniqueContainerName(name))
 
 	if isTerminal(os.Stdin) {
 		args = append(args, "-it")
@@ -79,6 +87,17 @@ func Assemble(p config.Preset, opts Options, image string, extraArgs []string) [
 	args = append(args, p.Args...)
 	args = append(args, extraArgs...)
 	return args
+}
+
+func uniqueContainerName(name string) string {
+	name = strings.ToLower(name)
+	name = invalidContainerNameChars.ReplaceAllString(name, "-")
+	return fmt.Sprintf("%s-%04x", name, randSuffix())
+}
+
+func randSuffix() uint16 {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return uint16(r.Intn(1 << 16))
 }
 
 // Exec runs docker with args, replacing the current process (best-effort).
