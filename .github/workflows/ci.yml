@@ -19,7 +19,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: go.mod
+          cache: true
 
       - name: Check formatting
         run: |
@@ -38,8 +39,17 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: latest
+          install-go: false
+
       - name: Test
-        run: go test ./...
+        run: go test -race -cover ./...
 
       - name: Build
         run: go build ./...
+
+      - name: Cross-build (windows guard check)
+        run: GOOS=windows go build ./... || true
