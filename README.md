@@ -49,7 +49,7 @@ Usage:
   drun [opts] -i <ref> <preset> [args]  Run a preset with its image overridden
   drun --list                           List known presets
   drun --build <preset> [args...]       Ensure layer image exists, then print docker command
-  drun --prune                          Remove all drun/* local images
+  drun --prune [-y]                     Remove all drun/* local images (prompts unless -y)
   drun -h, --help                       Show this help
 
 The first positional argument terminates drun flag parsing; everything after
@@ -66,6 +66,7 @@ Flags:
       --entrypoint <cmd>         Override entrypoint
       --home <path>              Override HOME inside container
       --docker-socket            Mount /var/run/docker.sock
+  -y, --yes                      Assume "yes" for confirmation prompts (e.g. --prune)
 ```
 
 ## How it works
@@ -98,6 +99,7 @@ services:
     volumes: [host:container, ...]  # ~ expanded
     ports: [host:container, ...]
     user: default                   # "default" = omit --user; otherwise uid:gid
+    x-drun-home: /home/user         # optional; shorthand for environment.HOME
     x-drun-layer:                   # optional; triggers image build
       apk: [pkg, ...]
       apt: [pkg, ...]
@@ -222,3 +224,9 @@ Compared to **ccliwrapper**, `drun` stays **Docker-first** and works with a sing
 Unlike **Distrobox** or **Toolbx**, `drun` is not trying to provide a long-lived, host-integrated development environment — it is optimized for **ad-hoc, per-command tool execution**.
 
 The goal is intentionally narrow: make containerized CLI tools feel as lightweight as aliases, while adding shareable presets, reproducible per-tool layering, and easy per-run overrides.
+
+## Contributing and security
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for development setup and
+conventions. Security issues should be reported privately as described
+in [`SECURITY.md`](SECURITY.md).
