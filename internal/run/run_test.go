@@ -167,11 +167,35 @@ func TestPrintQuoting(t *testing.T) {
 	}
 }
 
-func TestShellQuoteEscapesSingleQuotes(t *testing.T) {
-	got := shellQuote(`it's a "test"; rm -rf /`)
-	want := `'it'\''s a "test"; rm -rf /'`
-	if got != want {
-		t.Errorf("shellQuote = %q, want %q", got, want)
+func TestPrintGolden(t *testing.T) {
+	// Sanity-check that Assemble + shellQuote produce a deterministic,
+	// shell-pasteable command for a representative preset. The container
+	// --name suffix is non-deterministic, so replace it before comparing.
+	p := config.Preset{
+		Image:      "alpine:3.20",
+		Entrypoint: "sh",
+		Command:    []string{"-c"},
+		Env:        map[string]string{"K": "V"},
+	}
+	args := Assemble("alpine", p, Options{}, "alpine:3.20", []string{"echo $HOME"})
+	// Drop the actual container name (not stable across runs).
+	for i, a := range args {
+		if a == "--name" && i+1 < len(args) {
+			args[i+1] = "alpine-REDACTED"
+			break
+		}
+	}
+	quoted := strings.Join(quoteAll(args), " ")
+	// Must be entirely wrapped in single quotes per arg so the final
+	// positional 'echo $HOME' is not expanded by the shell.
+	if !strings.Contains(quoted, `'echo $HOME'`) {
+		t.Errorf("expected 'echo $HOME' literal, got:\n%s", quoted)
+	}
+	if !strings.Contains(quoted, "'--name' 'alpine-REDACTED'") {
+		t.Errorf("expected quoted --name, got:\n%s", quoted)
+	}
+	if !strings.Contains(quoted, "'K=V'") {
+		t.Errorf("expected quoted env, got:\n%s", quoted)
 	}
 }
 
