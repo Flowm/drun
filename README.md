@@ -138,6 +138,7 @@ drun shellcheck script.sh
 drun go build ./...
 drun gdal gdalinfo some.tif
 drun ripgrep TODO .
+drun uv run ruff check .
 ```
 
 Run a preset with a tool layer (builds `drun/opencode:<hash>` on first use):
