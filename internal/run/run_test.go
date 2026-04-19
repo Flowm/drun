@@ -91,6 +91,7 @@ func TestAssembleExtraArgsAndPresetArgs(t *testing.T) {
 }
 
 func TestAssembleOverrides(t *testing.T) {
+	tty := true
 	p := config.Preset{Image: "alpine", Entrypoint: "sh", User: "default", Home: "/old"}
 	args := Assemble("alpine", p, Options{
 		Entrypoint:  "bash",
@@ -99,8 +100,12 @@ func TestAssembleOverrides(t *testing.T) {
 		ExtraMounts: []string{"/host:/container", "/var/run/docker.sock:/var/run/docker.sock"},
 		ExtraPorts:  []string{"8080:80"},
 		ExtraEnv:    map[string]string{"K": "V"},
+		TTY:         &tty,
 	}, "alpine", nil)
 
+	if !contains(args, "-it") {
+		t.Fatalf("expected forced -it, got %v", args)
+	}
 	containsSeq(t, args, "--entrypoint", "bash")
 	containsSeq(t, args, "-u", "0:0")
 	containsSeq(t, args, "-e", "HOME=/new")

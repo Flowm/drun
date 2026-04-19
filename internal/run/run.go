@@ -30,6 +30,7 @@ type Options struct {
 	User        string // overrides preset.User if non-empty
 	Home        string // overrides preset.Home if non-empty
 	ExtraLayers map[string][]string
+	TTY         *bool // when set, overrides stdin-based TTY detection
 }
 
 var invalidContainerNameChars = regexp.MustCompile(`[^a-z0-9_.-]+`)
@@ -43,7 +44,7 @@ func Assemble(name string, p config.Preset, opts Options, image string, extraArg
 	args = append(args, "--cap-drop=ALL", "--security-opt=no-new-privileges")
 	args = append(args, "--name", uniqueContainerName(name))
 
-	if isTerminal(os.Stdin) {
+	if wantsTTY(opts.TTY) {
 		args = append(args, "-it")
 	} else {
 		args = append(args, "-i")
@@ -177,6 +178,13 @@ func isTerminal(f *os.File) bool {
 		return false
 	}
 	return term.IsTerminal(int(f.Fd()))
+}
+
+func wantsTTY(force *bool) bool {
+	if force != nil {
+		return *force
+	}
+	return isTerminal(os.Stdin)
 }
 
 // MissingHostDirs returns the host-side mount paths that do not yet exist.

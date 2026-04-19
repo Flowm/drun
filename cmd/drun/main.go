@@ -230,7 +230,12 @@ func cmdRun(presets config.Presets, f *flags) error {
 		image = tag
 	}
 
-	args := run.Assemble(name, p, run.Options{}, image, extra)
+	assembleOpts := run.Options{}
+	if f.buildMode {
+		forceTTY := true
+		assembleOpts.TTY = &forceTTY
+	}
+	args := run.Assemble(name, p, assembleOpts, image, extra)
 	if f.buildMode {
 		run.Print(args)
 		return nil
