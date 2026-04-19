@@ -70,7 +70,7 @@ services:
     image: node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4
 
   opencode:
-    image: ghcr.io/anomalyco/opencode:1.4.11@sha256:3fdd2f8a9aa58bafa4406d06ea83e519b984733bae1009da0367ce908215f258
+    image: ghcr.io/anomalyco/opencode:1.4.17@sha256:2e0bd1c938f5138813a6ce7140d3988c23fcbb825c8d14de6aa4dd226382b9aa
     environment:
       HOME: /home/user
     volumes:
@@ -80,7 +80,7 @@ services:
       - ~/.cache/opencode:/home/user/.cache/opencode
       - ~/.gitconfig:/home/user/.gitconfig:ro
     x-drun-layer:
-      apk: [git, nodejs, npm, go, make]
+      apk: [git, nodejs, npm, uv, go, make]
 
   pandoc:
     image: pandoc/core:3.9@sha256:bfca0ecc070ece31b6f56ba668446ab2dc9c973047eebb57b4d0710de8b91d0b
