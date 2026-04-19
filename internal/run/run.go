@@ -130,13 +130,16 @@ func quoteAll(args []string) []string {
 	return out
 }
 
-// shellQuote returns a POSIX shell-safe single-quoted form of s. The output
-// is always quoted, even for "safe" strings, so that the emitted command is
-// unambiguous when pasted into a shell regardless of extension (aliases,
-// functions, etc.).
+var safeShellWord = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)
+
+// shellQuote returns s unchanged when it is already a shell-safe word.
+// Otherwise it returns a POSIX shell-safe single-quoted form.
 func shellQuote(s string) string {
 	if s == "" {
 		return "''"
+	}
+	if safeShellWord.MatchString(s) {
+		return s
 	}
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

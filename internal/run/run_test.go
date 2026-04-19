@@ -153,17 +153,18 @@ func TestExpandMount(t *testing.T) {
 }
 
 func TestPrintQuoting(t *testing.T) {
-	args := []string{"run", "--entrypoint", "bash", "alpine", "-c", "echo hi"}
+	args := []string{"run", "--entrypoint", "bash", "alpine", "-c", "echo hi", `o'connor`}
 	quoted := quoteAll(args)
-	// Every arg is unconditionally single-quoted so the emitted command is
-	// unambiguous when pasted into a shell.
-	for i, q := range quoted {
-		if !strings.HasPrefix(q, "'") || !strings.HasSuffix(q, "'") {
-			t.Errorf("arg %d not quoted: %q", i, q)
+	for i, q := range quoted[:5] {
+		if q != args[i] {
+			t.Errorf("arg %d should stay readable, got %q", i, q)
 		}
 	}
-	if quoted[len(quoted)-1] != "'echo hi'" {
-		t.Errorf("expected quoted arg, got %q", quoted[len(quoted)-1])
+	if quoted[5] != "'echo hi'" {
+		t.Errorf("expected spaced arg to be quoted, got %q", quoted[5])
+	}
+	if quoted[6] != `'o'\''connor'` {
+		t.Errorf("expected embedded quote to be escaped, got %q", quoted[6])
 	}
 }
 
@@ -186,16 +187,16 @@ func TestPrintGolden(t *testing.T) {
 		}
 	}
 	quoted := strings.Join(quoteAll(args), " ")
-	// Must be entirely wrapped in single quotes per arg so the final
-	// positional 'echo $HOME' is not expanded by the shell.
+	// Unsafe args still need quoting so the final positional `echo $HOME`
+	// is not expanded by the shell.
 	if !strings.Contains(quoted, `'echo $HOME'`) {
 		t.Errorf("expected 'echo $HOME' literal, got:\n%s", quoted)
 	}
-	if !strings.Contains(quoted, "'--name' 'alpine-REDACTED'") {
-		t.Errorf("expected quoted --name, got:\n%s", quoted)
+	if !strings.Contains(quoted, "--name alpine-REDACTED") {
+		t.Errorf("expected readable --name, got:\n%s", quoted)
 	}
-	if !strings.Contains(quoted, "'K=V'") {
-		t.Errorf("expected quoted env, got:\n%s", quoted)
+	if !strings.Contains(quoted, "-e K=V") {
+		t.Errorf("expected readable env, got:\n%s", quoted)
 	}
 }
 
