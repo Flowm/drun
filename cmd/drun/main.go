@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 
@@ -203,19 +204,37 @@ func cmdRun(presets config.Presets, f *flags) error {
 }
 
 // applyOptionsToPreset folds CLI-derived fields into the preset so the run
-// assembly only needs to consult one struct.
+// assembly only needs to consult one struct. It copies slices/maps before
+// appending so that the preset map returned by config.Load is never mutated
+// through shared backing arrays.
 func applyOptionsToPreset(p *config.Preset, opts run.Options) {
-	for _, mount := range opts.ExtraMounts {
-		if !containsString(p.Mounts, mount) {
-			p.Mounts = append(p.Mounts, mount)
+	if len(opts.ExtraMounts) > 0 {
+		merged := append([]string(nil), p.Mounts...)
+		for _, mount := range opts.ExtraMounts {
+			if !slices.Contains(merged, mount) {
+				merged = append(merged, mount)
+			}
 		}
+		p.Mounts = merged
 	}
-	p.Ports = append(p.Ports, opts.ExtraPorts...)
-	if p.Env == nil && len(opts.ExtraEnv) > 0 {
-		p.Env = map[string]string{}
+	if len(opts.ExtraPorts) > 0 {
+		merged := append([]string(nil), p.Ports...)
+		for _, port := range opts.ExtraPorts {
+			if !slices.Contains(merged, port) {
+				merged = append(merged, port)
+			}
+		}
+		p.Ports = merged
 	}
-	for k, v := range opts.ExtraEnv {
-		p.Env[k] = v
+	if len(opts.ExtraEnv) > 0 {
+		merged := make(map[string]string, len(p.Env)+len(opts.ExtraEnv))
+		for k, v := range p.Env {
+			merged[k] = v
+		}
+		for k, v := range opts.ExtraEnv {
+			merged[k] = v
+		}
+		p.Env = merged
 	}
 	if opts.Entrypoint != "" {
 		p.Entrypoint = opts.Entrypoint
@@ -227,12 +246,18 @@ func applyOptionsToPreset(p *config.Preset, opts run.Options) {
 		p.Home = opts.Home
 	}
 	if len(opts.ExtraLayers) > 0 {
-		if p.Layer == nil {
-			p.Layer = map[string][]string{}
+		merged := make(map[string][]string, len(p.Layer)+len(opts.ExtraLayers))
+		for pm, pkgs := range p.Layer {
+			merged[pm] = append([]string(nil), pkgs...)
 		}
 		for pm, pkgs := range opts.ExtraLayers {
-			p.Layer[pm] = append(p.Layer[pm], pkgs...)
+			for _, pkg := range pkgs {
+				if !slices.Contains(merged[pm], pkg) {
+					merged[pm] = append(merged[pm], pkg)
+				}
+			}
 		}
+		p.Layer = merged
 	}
 }
 
@@ -264,19 +289,16 @@ func flagsToOptions(f *flags) (run.Options, error) {
 			if !ok {
 				return opts, fmt.Errorf("invalid --layer %q (expected pm:pkg,pkg)", l)
 			}
-			opts.ExtraLayers[pm] = append(opts.ExtraLayers[pm], strings.Split(pkgs, ",")...)
+			for _, pkg := range strings.Split(pkgs, ",") {
+				pkg = strings.TrimSpace(pkg)
+				if pkg == "" {
+					continue
+				}
+				opts.ExtraLayers[pm] = append(opts.ExtraLayers[pm], pkg)
+			}
 		}
 	}
 	return opts, nil
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 func parseArgs(argv []string) (*flags, error) {
