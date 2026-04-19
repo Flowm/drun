@@ -163,6 +163,19 @@ func TestParseArgsYesFlag(t *testing.T) {
 	}
 }
 
+func TestParseArgsLatestFlag(t *testing.T) {
+	f, err := parseArgs([]string{"--latest", "golang", "version"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !f.latest {
+		t.Errorf("latest not set: %+v", f)
+	}
+	if !reflect.DeepEqual(f.rest, []string{"golang", "version"}) {
+		t.Errorf("rest = %v", f.rest)
+	}
+}
+
 func TestFlagsToOptionsEnvValidation(t *testing.T) {
 	_, err := flagsToOptions(&flags{envs: []string{"NOEQUALS"}})
 	if err == nil {

@@ -66,6 +66,7 @@ Flags:
       --entrypoint <cmd>         Override entrypoint
       --home <path>              Override HOME inside container
       --docker-socket            Mount /var/run/docker.sock
+      --latest                   Ignore preset/CLI image tag; pull and use :latest
   -y, --yes                      Assume "yes" for confirmation prompts (e.g. --prune)
 ```
 
@@ -84,6 +85,21 @@ If the preset declares an `x-drun-layer:`, drun builds a local image
 then always runs that image as the host user at runtime. The hash covers
 the base image, package manager, package list, and `environment.HOME`; change
 any of those and a new image is built on next use.
+
+## Using the latest image
+
+Pass `--latest` to ignore any tag or digest in the preset (or in `-i`) and
+run the `:latest` tag of the same repository instead:
+
+```
+drun --latest golang version
+drun --latest -i ghcr.io/anomalyco/opencode opencode
+```
+
+For layered presets, drun first runs `docker pull <repo>:latest`, reads the
+resolved image digest, and feeds that digest into the layer-image hash. That
+means repeat runs reuse a cached build as long as upstream `:latest` is
+unchanged, and automatically rebuild the next time it moves.
 
 ## Preset schema
 

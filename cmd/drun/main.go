@@ -50,6 +50,7 @@ Flags:
       --entrypoint <cmd>         Override entrypoint
       --home <path>              Override HOME inside container
       --docker-socket            Mount /var/run/docker.sock
+      --latest                   Ignore preset/CLI image tag; pull and use :latest
   -y, --yes                      Skip confirmation prompts (e.g. --prune)
 `
 
@@ -70,6 +71,7 @@ type flags struct {
 	user         string
 	home         string
 	dockerSocket bool
+	latest       bool
 
 	// positional after flag parsing
 	rest []string
@@ -195,6 +197,9 @@ func cmdRun(presets config.Presets, f *flags) error {
 	if f.image != "" {
 		p.Image = f.image
 	}
+	if f.latest {
+		p.Image = build.LatestRef(p.Image)
+	}
 
 	// Merge CLI flags into preset.
 	opts, err := flagsToOptions(f)
@@ -205,6 +210,17 @@ func cmdRun(presets config.Presets, f *flags) error {
 
 	if err := p.Validate(name); err != nil {
 		return err
+	}
+
+	// For layered presets with --latest, resolve :latest to its current
+	// digest before hashing so repeat runs reuse a cached build only while
+	// the upstream digest is unchanged.
+	if f.latest && build.NeedsBuild(p) {
+		ref, err := build.ResolveLatestDigest(p.Image)
+		if err != nil {
+			return err
+		}
+		p.Image = ref
 	}
 
 	image := p.Image
@@ -347,6 +363,8 @@ func parseArgs(argv []string) (*flags, error) {
 			f.buildMode = true
 		case a == "--docker-socket":
 			f.dockerSocket = true
+		case a == "--latest":
+			f.latest = true
 		case a == "--yes" || a == "-y":
 			f.yes = true
 		case a == "--image" || a == "-i":

@@ -213,3 +213,52 @@ func baseImageExists(ref string) bool {
 	cmd := exec.Command("docker", "image", "inspect", ref)
 	return cmd.Run() == nil
 }
+
+// LatestRef rewrites an image reference so it points at the `:latest` tag of
+// the same repository, stripping any existing tag and/or digest. Registry
+// host and port are preserved. The returned ref always ends in ":latest".
+//
+//	alpine                                 -> alpine:latest
+//	golang:1.24-alpine                     -> golang:latest
+//	ghcr.io/foo/bar:canary                 -> ghcr.io/foo/bar:latest
+//	registry.local:5000/foo/bar:v1         -> registry.local:5000/foo/bar:latest
+//	foo@sha256:abcd                        -> foo:latest
+//	ghcr.io/foo/bar:v1@sha256:abcd         -> ghcr.io/foo/bar:latest
+func LatestRef(ref string) string {
+	// Drop any digest suffix first.
+	if i := strings.Index(ref, "@"); i >= 0 {
+		ref = ref[:i]
+	}
+	// A tag, if present, lives after the last ':' in the final path
+	// component. A ':' earlier in the ref belongs to a registry host:port.
+	slash := strings.LastIndex(ref, "/")
+	colon := strings.LastIndex(ref, ":")
+	if colon > slash {
+		ref = ref[:colon]
+	}
+	return ref + ":latest"
+}
+
+// ResolveLatestDigest pulls the given ref (expected to be `<repo>:latest`)
+// and returns a digest-pinned reference of the form `<repo>@sha256:...`. This
+// lets callers feed the ref into `Tag`/`hash` so that as upstream `:latest`
+// moves, the resulting layer image tag changes too — without forcing a
+// rebuild when nothing upstream actually changed between runs.
+func ResolveLatestDigest(ref string) (string, error) {
+	pull := exec.Command("docker", "pull", ref)
+	pull.Stdout = os.Stderr
+	pull.Stderr = os.Stderr
+	if err := pull.Run(); err != nil {
+		return "", fmt.Errorf("pull %s: %w", ref, err)
+	}
+	out, err := exec.Command("docker", "image", "inspect",
+		"--format", "{{index .RepoDigests 0}}", ref).Output()
+	if err != nil {
+		return "", fmt.Errorf("inspect digest for %s: %w", ref, err)
+	}
+	digestRef := strings.TrimSpace(string(out))
+	if digestRef == "" || !strings.Contains(digestRef, "@sha256:") {
+		return "", fmt.Errorf("no repo digest for %s (got %q)", ref, digestRef)
+	}
+	return digestRef, nil
+}

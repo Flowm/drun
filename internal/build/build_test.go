@@ -195,3 +195,26 @@ func TestDockerfileNoLayer(t *testing.T) {
 		t.Errorf("unexpected RUN in layerless dockerfile:\n%s", df)
 	}
 }
+
+func TestLatestRef(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"alpine", "alpine:latest"},
+		{"alpine:latest", "alpine:latest"},
+		{"alpine:3.20", "alpine:latest"},
+		{"library/alpine", "library/alpine:latest"},
+		{"ghcr.io/foo/bar", "ghcr.io/foo/bar:latest"},
+		{"ghcr.io/foo/bar:canary", "ghcr.io/foo/bar:latest"},
+		{"registry.local:5000/foo/bar:v1", "registry.local:5000/foo/bar:latest"},
+		{"registry.local:5000/foo/bar", "registry.local:5000/foo/bar:latest"},
+		{"foo@sha256:abcd", "foo:latest"},
+		{"ghcr.io/foo/bar:v1@sha256:abcd", "ghcr.io/foo/bar:latest"},
+		{"ghcr.io/foo/bar@sha256:abcd", "ghcr.io/foo/bar:latest"},
+	}
+	for _, c := range cases {
+		if got := LatestRef(c.in); got != c.want {
+			t.Errorf("LatestRef(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
