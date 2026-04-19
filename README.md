@@ -27,16 +27,15 @@ Requires `docker` on `$PATH`.
 
 Releases also publish `ghcr.io/flowm/drun`, which packages the `drun` binary together with the Docker CLI.
 
-`drun` shells out to `docker run`, so when `drun` itself is running inside a container it still needs a Docker daemon to talk to. Mounting `/var/run/docker.sock` lets the containerized `drun` process use the host Docker daemon.
-
 Use it directly like this:
 
 ```
 docker run --rm ghcr.io/flowm/drun:latest --help
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/flowm/drun:latest opencode
+docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":"$PWD" -w "$PWD" -u $(id -u):$(id -g) --group-add $(stat -c '%g' /var/run/docker.sock) -e HOME="$HOME" --tmpfs "$HOME:mode=1777" ghcr.io/flowm/drun:latest opencode
 ```
 
-For real runs, the container still needs access to a reachable Docker daemon, typically via `/var/run/docker.sock` as shown above.
+`drun` shells out to `docker run`, so when `drun` itself is running inside a container it still needs a Docker daemon to talk to. Mounting `/var/run/docker.sock` lets the containerized `drun` process use the host Docker daemon.
+When `drun` runs inside a container, it still expands `$PWD` and `~` before calling the host Docker daemon. Bind the current working directory at the same absolute path, keep `HOME` set to the host's absolute home path so `~` expands correctly, and mount that path as a writable `tmpfs` in the wrapper container so no home-directory files are exposed there. The Docker CLI inside the wrapper still needs to create `~/.docker`, so the `tmpfs` must be writable for the selected UID. If the mounted Docker socket is group-owned, add that socket GID with `--group-add $(stat -c '%g' /var/run/docker.sock)` so the wrapper process can talk to the host daemon. Any real config or state mounts can still be passed later to the tool container itself.
 
 ## Help
 
