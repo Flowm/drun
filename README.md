@@ -10,7 +10,7 @@ A preset-driven wrapper around `docker run` for ad-hoc usage of tools.
 - Transparent layering: declare extra packages under `x-drun-layer` and drun builds a local image on top of the base
 - Ad-hoc mode: run any image with `-i <ref>` without writing a preset
 - Override any preset field from the CLI (image, mounts, env, ports, entrypoint, user, home)
-- `--print` for dry-runs, `--rebuild` to force a layer rebuild, `--prune` to clean up built images
+- `--print` for dry-runs, `--build` to build layers and print the host command, `--prune` to clean up built images
 - Single static Go binary, depends only on the `docker` CLI
 
 ## Install
@@ -27,15 +27,16 @@ Requires `docker` on `$PATH`.
 
 Releases also publish `ghcr.io/flowm/drun`, which packages the `drun` binary together with the Docker CLI.
 
-Use it directly like this:
+Use it like this:
 
 ```
-docker run --rm ghcr.io/flowm/drun:latest --help
-docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":"$PWD" -w "$PWD" -u $(id -u):$(id -g) --group-add $(stat -c '%g' /var/run/docker.sock) -e HOME="$HOME" --tmpfs "$HOME:mode=1777" ghcr.io/flowm/drun:latest opencode
+docker run --rm ghcr.io/flowm/drun:latest --list
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/flowm/drun:latest --build opencode
 ```
 
-`drun` shells out to `docker run`, so when `drun` itself is running inside a container it still needs a Docker daemon to talk to. Mounting `/var/run/docker.sock` lets the containerized `drun` process use the host Docker daemon.
-When `drun` runs inside a container, it still expands `$PWD` and `~` before calling the host Docker daemon. Bind the current working directory at the same absolute path, keep `HOME` set to the host's absolute home path so `~` expands correctly, and mount that path as a writable `tmpfs` in the wrapper container so no home-directory files are exposed there. The Docker CLI inside the wrapper still needs to create `~/.docker`, so the `tmpfs` must be writable for the selected UID. If the mounted Docker socket is group-owned, add that socket GID with `--group-add $(stat -c '%g' /var/run/docker.sock)` so the wrapper process can talk to the host daemon. Any real config or state mounts can still be passed later to the tool container itself.
+`drun` shells out to `docker`, so when `drun` runs inside a container it needs access to the host daemon via `/var/run/docker.sock`.
+
+In that setup, `drun` should be used with `--build`: it builds any required layer image, but does not directly start the tool container. Instead it prints the final `docker run ...` command for you to execute on the host. This is necessary because the final command must resolve host paths against the real host filesystem, not the wrapper container's filesystem.
 
 ## Help
 
@@ -48,7 +49,7 @@ Usage:
   drun [opts] -i <ref> <preset> [args]  Run a preset with its image overridden
   drun --list                           List known presets
   drun --print <preset> [args...]       Dry-run: show docker commands
-  drun --rebuild <preset> [args...]     Force rebuild of layer image, then run
+  drun --build <preset> [args...]       Ensure layer image exists, then print docker command
   drun --prune                          Remove all drun/* local images
   drun -h, --help                       Show this help
 
@@ -160,10 +161,10 @@ Extra mounts, env, and a custom entrypoint over a preset:
 drun -v ~/data:/data -e DEBUG=1 --entrypoint bash shellcheck
 ```
 
-Force a rebuild of a layer image (e.g. after the upstream base moved):
+Build a layer image if needed and print the host command to run:
 
 ```
-drun --rebuild opencode
+drun --build opencode
 ```
 
 Clean up all locally built `drun/*` images:

@@ -170,11 +170,10 @@ func ImageExists(tag string) bool {
 	return cmd.Run() == nil
 }
 
-// EnsureImage builds the layer image if not present (or if force is true).
-// Returns the tag to run.
-func EnsureImage(name string, p config.Preset, force bool) (string, error) {
+// EnsureImage builds the layer image if not present and returns the tag to run.
+func EnsureImage(name string, p config.Preset) (string, error) {
 	tag := Tag(name, p)
-	if !force && ImageExists(tag) {
+	if ImageExists(tag) {
 		return tag, nil
 	}
 	runtimeUser, err := runtimeUserForBuild(p)

@@ -27,7 +27,7 @@ Usage:
   drun [opts] -i <ref> <preset> [args]  Run a preset with its image overridden
   drun --list                           List known presets
   drun --print <preset> [args...]       Dry-run: show docker commands
-  drun --rebuild <preset> [args...]     Force rebuild of layer image, then run
+  drun --build <preset> [args...]       Ensure layer image exists, then print docker command
   drun --prune                          Remove all drun/* local images
   drun -h, --help                       Show this help
   drun --version                        Print version
@@ -51,7 +51,7 @@ Flags:
 type flags struct {
 	listMode    bool
 	printMode   bool
-	rebuildMode bool
+	buildMode   bool
 	pruneMode   bool
 	helpMode    bool
 	versionMode bool
@@ -188,7 +188,7 @@ func cmdRun(presets config.Presets, f *flags) error {
 			build.PrintBuild(name, p)
 			image = build.Tag(name, p)
 		} else {
-			tag, err := build.EnsureImage(name, p, f.rebuildMode)
+			tag, err := build.EnsureImage(name, p)
 			if err != nil {
 				return err
 			}
@@ -197,7 +197,7 @@ func cmdRun(presets config.Presets, f *flags) error {
 	}
 
 	args := run.Assemble(name, p, run.Options{}, image, extra)
-	if f.printMode {
+	if f.printMode || f.buildMode {
 		run.Print(args)
 		return nil
 	}
@@ -304,8 +304,8 @@ func parseArgs(argv []string) (*flags, error) {
 			f.pruneMode = true
 		case a == "--print":
 			f.printMode = true
-		case a == "--rebuild":
-			f.rebuildMode = true
+		case a == "--build":
+			f.buildMode = true
 		case a == "--docker-socket":
 			f.dockerSocket = true
 		case a == "--image" || a == "-i":
