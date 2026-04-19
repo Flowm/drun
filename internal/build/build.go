@@ -164,10 +164,7 @@ func sortedKeys(m map[string][]string) []string {
 
 // ImageExists returns true if the local docker daemon has the given tag.
 func ImageExists(tag string) bool {
-	cmd := exec.Command("docker", "image", "inspect", tag)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run() == nil
+	return exec.Command("docker", "image", "inspect", tag).Run() == nil
 }
 
 // EnsureImage builds the layer image if not present and returns the tag to run.
@@ -204,9 +201,24 @@ func runtimeUserForBuild(p config.Preset) (string, error) {
 	if p.User != "default" {
 		return "", nil
 	}
+	// `docker image inspect` only consults the local image store, so ensure
+	// the base image is present before we try to read its runtime user.
+	if !baseImageExists(p.Image) {
+		pull := exec.Command("docker", "pull", p.Image)
+		pull.Stdout = os.Stderr
+		pull.Stderr = os.Stderr
+		if err := pull.Run(); err != nil {
+			return "", fmt.Errorf("pull base image %s: %w", p.Image, err)
+		}
+	}
 	out, err := exec.Command("docker", "image", "inspect", "--format", "{{.Config.User}}", p.Image).Output()
 	if err != nil {
 		return "", fmt.Errorf("inspect base image user for %s: %w", p.Image, err)
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+func baseImageExists(ref string) bool {
+	cmd := exec.Command("docker", "image", "inspect", ref)
+	return cmd.Run() == nil
 }
