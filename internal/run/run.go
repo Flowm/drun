@@ -190,24 +190,24 @@ func MissingHostDirs(p config.Preset, opts Options) []string {
 }
 
 // EnsureHostDirs prompts to create missing host-side mount directories.
-// On a TTY it asks once whether to create them or abort. Off a TTY it creates
-// directories silently.
+// Without a TTY it skips host-side creation and leaves missing paths alone.
 func EnsureHostDirs(missing []string, in io.Reader, out io.Writer) error {
 	if len(missing) == 0 {
 		return nil
 	}
-	if isTerminal(os.Stdin) {
-		fmt.Fprintln(out, "drun: the following mount paths do not exist on the host:")
-		for _, p := range missing {
-			fmt.Fprintf(out, "  %s\n", p)
-		}
-		fmt.Fprint(out, "Create directories? [Y/n] ")
-		r := bufio.NewReader(in)
-		line, _ := r.ReadString('\n')
-		ans := strings.ToLower(strings.TrimSpace(line))
-		if ans != "" && ans != "y" && ans != "yes" {
-			return fmt.Errorf("aborted: missing mount paths not created")
-		}
+	if !isTerminal(os.Stdin) {
+		return nil
+	}
+	fmt.Fprintln(out, "drun: the following mount paths do not exist on the host:")
+	for _, p := range missing {
+		fmt.Fprintf(out, "  %s\n", p)
+	}
+	fmt.Fprint(out, "Create directories? [Y/n] ")
+	r := bufio.NewReader(in)
+	line, _ := r.ReadString('\n')
+	ans := strings.ToLower(strings.TrimSpace(line))
+	if ans != "" && ans != "y" && ans != "yes" {
+		return fmt.Errorf("aborted: missing mount paths not created")
 	}
 	for _, p := range missing {
 		if err := os.MkdirAll(p, 0o755); err != nil {

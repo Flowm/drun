@@ -9,6 +9,13 @@ import (
 	"github.com/flowm/drun/internal/config"
 )
 
+func swapStdin(t *testing.T, f *os.File) {
+	t.Helper()
+	orig := os.Stdin
+	os.Stdin = f
+	t.Cleanup(func() { os.Stdin = orig })
+}
+
 // joinArgs makes substring checks cleaner while still asserting sequence.
 func joinArgs(args []string) string {
 	return strings.Join(args, " ")
@@ -184,11 +191,17 @@ func TestMissingHostDirs(t *testing.T) {
 }
 
 func TestEnsureHostDirsCreates(t *testing.T) {
+	stdin, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stdin.Close() })
+	swapStdin(t, stdin)
+
 	dir := t.TempDir()
 	target := filepath.Join(dir, "a", "b", "c")
-	// stdin is not a TTY in tests -> auto-create.
 	var out strings.Builder
-	if err := EnsureHostDirs([]string{target}, strings.NewReader(""), &out); err != nil {
+	if err := EnsureHostDirs([]string{target}, strings.NewReader("\n"), &out); err != nil {
 		t.Fatalf("EnsureHostDirs: %v", err)
 	}
 	info, err := os.Stat(target)
@@ -197,6 +210,51 @@ func TestEnsureHostDirsCreates(t *testing.T) {
 	}
 	if !info.IsDir() {
 		t.Error("target is not a directory")
+	}
+}
+
+func TestEnsureHostDirsSkipsWithoutTerminal(t *testing.T) {
+	stdin, stdout, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = stdin.Close()
+		_ = stdout.Close()
+	})
+	swapStdin(t, stdin)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "a", "b", "c")
+	var out strings.Builder
+	if err := EnsureHostDirs([]string{target}, strings.NewReader(""), &out); err != nil {
+		t.Fatalf("EnsureHostDirs: %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("target should not be created, stat err = %v", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("expected no output, got %q", out.String())
+	}
+}
+
+func TestEnsureHostDirsAbortOnDecline(t *testing.T) {
+	stdin, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stdin.Close() })
+	swapStdin(t, stdin)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "a", "b", "c")
+	var out strings.Builder
+	err = EnsureHostDirs([]string{target}, strings.NewReader("n\n"), &out)
+	if err == nil {
+		t.Fatal("expected abort error")
+	}
+	if _, statErr := os.Stat(target); !os.IsNotExist(statErr) {
+		t.Fatalf("target should not be created, stat err = %v", statErr)
 	}
 }
 
