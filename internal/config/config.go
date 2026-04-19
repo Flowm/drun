@@ -42,18 +42,22 @@ func Load() (Presets, error) {
 	}
 
 	userPath, err := userConfigPath()
-	if err == nil {
-		if data, err := os.ReadFile(userPath); err == nil {
-			user, err := loadComposePresets(data)
-			if err != nil {
-				return nil, fmt.Errorf("parse %s: %w", userPath, err)
-			}
-			for k, v := range user {
-				out[k] = v
-			}
-		} else if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("read %s: %w", userPath, err)
+	if err != nil {
+		return nil, fmt.Errorf("resolve user config path: %w", err)
+	}
+	data, err := os.ReadFile(userPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return out, nil
 		}
+		return nil, fmt.Errorf("read %s: %w", userPath, err)
+	}
+	user, err := loadComposePresets(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", userPath, err)
+	}
+	for k, v := range user {
+		out[k] = v
 	}
 	return out, nil
 }
