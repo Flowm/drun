@@ -49,7 +49,6 @@ Flags:
   -u, --user <uid:gid|default>   Override user
       --entrypoint <cmd>         Override entrypoint
       --home <path>              Override HOME inside container
-      --docker-socket            Mount /var/run/docker.sock
       --latest                   Ignore preset/CLI image tag; pull and use :latest
   -y, --yes                      Skip confirmation prompts (e.g. --prune)
 `
@@ -62,16 +61,15 @@ type flags struct {
 	versionMode bool
 	yes         bool
 
-	image        string
-	layers       []string
-	mounts       []string
-	envs         []string
-	ports        []string
-	entrypoint   string
-	user         string
-	home         string
-	dockerSocket bool
-	latest       bool
+	image      string
+	layers     []string
+	mounts     []string
+	envs       []string
+	ports      []string
+	entrypoint string
+	user       string
+	home       string
+	latest     bool
 
 	// positional after flag parsing
 	rest []string
@@ -311,9 +309,6 @@ func flagsToOptions(f *flags) (run.Options, error) {
 		User:        f.user,
 		Home:        f.home,
 	}
-	if f.dockerSocket {
-		opts.ExtraMounts = append(opts.ExtraMounts, "/var/run/docker.sock:/var/run/docker.sock")
-	}
 	if len(f.envs) > 0 {
 		opts.ExtraEnv = map[string]string{}
 		for _, e := range f.envs {
@@ -361,8 +356,6 @@ func parseArgs(argv []string) (*flags, error) {
 			f.pruneMode = true
 		case a == "--build":
 			f.buildMode = true
-		case a == "--docker-socket":
-			f.dockerSocket = true
 		case a == "--latest":
 			f.latest = true
 		case a == "--yes" || a == "-y":

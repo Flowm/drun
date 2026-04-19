@@ -65,7 +65,6 @@ Flags:
   -u, --user <uid:gid|default>   Override user
       --entrypoint <cmd>         Override entrypoint
       --home <path>              Override HOME inside container
-      --docker-socket            Mount /var/run/docker.sock
       --latest                   Ignore preset/CLI image tag; pull and use :latest
   -y, --yes                      Assume "yes" for confirmation prompts (e.g. --prune)
 ```
