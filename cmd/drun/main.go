@@ -26,7 +26,6 @@ Usage:
   drun [opts] -i <ref> [cmd...]         Run an ad-hoc image
   drun [opts] -i <ref> <preset> [args]  Run a preset with its image overridden
   drun --list                           List known presets
-  drun --print <preset> [args...]       Dry-run: show docker commands
   drun --build <preset> [args...]       Ensure layer image exists, then print docker command
   drun --prune                          Remove all drun/* local images
   drun -h, --help                       Show this help
@@ -50,7 +49,6 @@ Flags:
 
 type flags struct {
 	listMode    bool
-	printMode   bool
 	buildMode   bool
 	pruneMode   bool
 	helpMode    bool
@@ -184,20 +182,15 @@ func cmdRun(presets config.Presets, f *flags) error {
 
 	image := p.Image
 	if build.NeedsBuild(p) {
-		if f.printMode {
-			build.PrintBuild(name, p)
-			image = build.Tag(name, p)
-		} else {
-			tag, err := build.EnsureImage(name, p)
-			if err != nil {
-				return err
-			}
-			image = tag
+		tag, err := build.EnsureImage(name, p)
+		if err != nil {
+			return err
 		}
+		image = tag
 	}
 
 	args := run.Assemble(name, p, run.Options{}, image, extra)
-	if f.printMode || f.buildMode {
+	if f.buildMode {
 		run.Print(args)
 		return nil
 	}
@@ -302,8 +295,6 @@ func parseArgs(argv []string) (*flags, error) {
 			f.listMode = true
 		case a == "--prune":
 			f.pruneMode = true
-		case a == "--print":
-			f.printMode = true
 		case a == "--build":
 			f.buildMode = true
 		case a == "--docker-socket":

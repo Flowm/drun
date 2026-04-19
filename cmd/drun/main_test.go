@@ -140,10 +140,6 @@ func TestParseArgsModeFlags(t *testing.T) {
 	if err != nil || !f.pruneMode {
 		t.Errorf("--prune: %v %+v", err, f)
 	}
-	f, err = parseArgs([]string{"--print", "alpine"})
-	if err != nil || !f.printMode {
-		t.Errorf("--print: %v %+v", err, f)
-	}
 	f, err = parseArgs([]string{"--build", "alpine"})
 	if err != nil || !f.buildMode {
 		t.Errorf("--build: %v %+v", err, f)

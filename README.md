@@ -10,7 +10,7 @@ A preset-driven wrapper around `docker run` for ad-hoc usage of tools.
 - Transparent layering: declare extra packages under `x-drun-layer` and drun builds a local image on top of the base
 - Ad-hoc mode: run any image with `-i <ref>` without writing a preset
 - Override any preset field from the CLI (image, mounts, env, ports, entrypoint, user, home)
-- `--print` for dry-runs, `--build` to build layers and print the host command, `--prune` to clean up built images
+- `--build` to build layers if needed and print the host command, `--prune` to clean up built images
 - Single static Go binary, depends only on the `docker` CLI
 
 ## Install
@@ -48,7 +48,6 @@ Usage:
   drun [opts] -i <ref> [cmd...]         Run an ad-hoc image
   drun [opts] -i <ref> <preset> [args]  Run a preset with its image overridden
   drun --list                           List known presets
-  drun --print <preset> [args...]       Dry-run: show docker commands
   drun --build <preset> [args...]       Ensure layer image exists, then print docker command
   drun --prune                          Remove all drun/* local images
   drun -h, --help                       Show this help
@@ -130,10 +129,10 @@ Run a preset with a tool layer (builds `drun/opencode:<hash>` on first use):
 drun opencode
 ```
 
-Preview what would be executed without running it:
+Build a layer image if needed and print the host command to run:
 
 ```
-drun --print opencode
+drun --build opencode
 ```
 
 Ad-hoc image with an on-the-fly layer:
@@ -159,12 +158,6 @@ Extra mounts, env, and a custom entrypoint over a preset:
 
 ```
 drun -v ~/data:/data -e DEBUG=1 --entrypoint bash shellcheck
-```
-
-Build a layer image if needed and print the host command to run:
-
-```
-drun --build opencode
 ```
 
 Clean up all locally built `drun/*` images:
@@ -224,7 +217,7 @@ lives in `.goreleaser.yaml`.
 
 `drun` exists to keep the convenience of `docker run` aliases without the sprawl of maintaining them in shell config.
 
-Compared to **Whalebrew**, `drun` is less magical and more explicit: it does not depend on image labels or installation shims, and every invocation is still just a transparent `docker run` you can inspect with `--print`.
+Compared to **Whalebrew**, `drun` is less magical and more explicit: it does not depend on image labels or installation shims, and `--build` lets you print the final host-side `docker run` command after preparing any required layer image.
 Compared to **ccliwrapper**, `drun` stays **Docker-first** and works with a single static binary instead of targeting a Podman-specific workflow.
 Unlike **Distrobox** or **Toolbx**, `drun` is not trying to provide a long-lived, host-integrated development environment — it is optimized for **ad-hoc, per-command tool execution**.
 

@@ -200,20 +200,6 @@ func EnsureImage(name string, p config.Preset) (string, error) {
 	return tag, nil
 }
 
-// PrintBuild emits what EnsureImage would do without running it.
-func PrintBuild(name string, p config.Preset) {
-	tag := Tag(name, p)
-	runtimeUser, err := runtimeUserForBuild(p)
-	if err != nil {
-		runtimeUser = ""
-	}
-	fmt.Fprintf(os.Stdout, "# would build %s\n", tag)
-	fmt.Fprintln(os.Stdout, "# Dockerfile:")
-	for _, line := range strings.Split(strings.TrimRight(dockerfile(p, runtimeUser), "\n"), "\n") {
-		fmt.Fprintf(os.Stdout, "#   %s\n", line)
-	}
-}
-
 func runtimeUserForBuild(p config.Preset) (string, error) {
 	if p.User != "default" {
 		return "", nil
