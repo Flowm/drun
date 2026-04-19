@@ -9,13 +9,6 @@ import (
 	"github.com/flowm/drun/internal/config"
 )
 
-func swapStdin(t *testing.T, f *os.File) {
-	t.Helper()
-	orig := os.Stdin
-	os.Stdin = f
-	t.Cleanup(func() { os.Stdin = orig })
-}
-
 // joinArgs makes substring checks cleaner while still asserting sequence.
 func joinArgs(args []string) string {
 	return strings.Join(args, " ")
@@ -191,17 +184,10 @@ func TestMissingHostDirs(t *testing.T) {
 }
 
 func TestEnsureHostDirsCreates(t *testing.T) {
-	stdin, err := os.Open("/dev/null")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = stdin.Close() })
-	swapStdin(t, stdin)
-
 	dir := t.TempDir()
 	target := filepath.Join(dir, "a", "b", "c")
 	var out strings.Builder
-	if err := EnsureHostDirs([]string{target}, strings.NewReader("\n"), &out); err != nil {
+	if err := ensureHostDirs([]string{target}, strings.NewReader("\n"), &out, true); err != nil {
 		t.Fatalf("EnsureHostDirs: %v", err)
 	}
 	info, err := os.Stat(target)
@@ -214,20 +200,10 @@ func TestEnsureHostDirsCreates(t *testing.T) {
 }
 
 func TestEnsureHostDirsSkipsWithoutTerminal(t *testing.T) {
-	stdin, stdout, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = stdin.Close()
-		_ = stdout.Close()
-	})
-	swapStdin(t, stdin)
-
 	dir := t.TempDir()
 	target := filepath.Join(dir, "a", "b", "c")
 	var out strings.Builder
-	if err := EnsureHostDirs([]string{target}, strings.NewReader(""), &out); err != nil {
+	if err := ensureHostDirs([]string{target}, strings.NewReader(""), &out, false); err != nil {
 		t.Fatalf("EnsureHostDirs: %v", err)
 	}
 	if _, err := os.Stat(target); !os.IsNotExist(err) {
@@ -239,17 +215,10 @@ func TestEnsureHostDirsSkipsWithoutTerminal(t *testing.T) {
 }
 
 func TestEnsureHostDirsAbortOnDecline(t *testing.T) {
-	stdin, err := os.Open("/dev/null")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = stdin.Close() })
-	swapStdin(t, stdin)
-
 	dir := t.TempDir()
 	target := filepath.Join(dir, "a", "b", "c")
 	var out strings.Builder
-	err = EnsureHostDirs([]string{target}, strings.NewReader("n\n"), &out)
+	err := ensureHostDirs([]string{target}, strings.NewReader("n\n"), &out, true)
 	if err == nil {
 		t.Fatal("expected abort error")
 	}
@@ -261,7 +230,7 @@ func TestEnsureHostDirsAbortOnDecline(t *testing.T) {
 func TestEnsureHostDirsNoop(t *testing.T) {
 	// No missing paths: should do nothing and not prompt.
 	var out strings.Builder
-	if err := EnsureHostDirs(nil, strings.NewReader(""), &out); err != nil {
+	if err := ensureHostDirs(nil, strings.NewReader(""), &out, true); err != nil {
 		t.Fatalf("EnsureHostDirs(nil): %v", err)
 	}
 	if out.Len() != 0 {

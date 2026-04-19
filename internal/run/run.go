@@ -2,18 +2,19 @@ package run
 
 import (
 	"bufio"
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/flowm/drun/internal/config"
+	"golang.org/x/term"
 )
 
 // Options are fields that can be supplied from CLI to override or augment a preset.
@@ -87,12 +88,20 @@ func Assemble(name string, p config.Preset, opts Options, image string, extraArg
 func uniqueContainerName(name string) string {
 	name = strings.ToLower(name)
 	name = invalidContainerNameChars.ReplaceAllString(name, "-")
-	return fmt.Sprintf("%s-%04x", name, randSuffix())
+	name = strings.Trim(name, "-_.")
+	if name == "" {
+		name = "drun"
+	}
+	return fmt.Sprintf("%s-%08x", name, randSuffix())
 }
 
-func randSuffix() uint16 {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return uint16(r.Intn(1 << 16))
+func randSuffix() uint32 {
+	var buf [4]byte
+	if _, err := cryptorand.Read(buf[:]); err != nil {
+		// crypto/rand should never fail; fall back to a non-constant value
+		return uint32(os.Getpid())
+	}
+	return binary.BigEndian.Uint32(buf[:])
 }
 
 // Exec runs docker with args, replacing the current process (best-effort).
@@ -157,11 +166,10 @@ func firstNonEmpty(a, b string) string {
 }
 
 func isTerminal(f *os.File) bool {
-	fi, err := f.Stat()
-	if err != nil {
+	if f == nil {
 		return false
 	}
-	return (fi.Mode() & os.ModeCharDevice) != 0
+	return term.IsTerminal(int(f.Fd()))
 }
 
 // MissingHostDirs returns the host-side mount paths that do not yet exist.
@@ -192,10 +200,14 @@ func MissingHostDirs(p config.Preset, opts Options) []string {
 // EnsureHostDirs prompts to create missing host-side mount directories.
 // Without a TTY it skips host-side creation and leaves missing paths alone.
 func EnsureHostDirs(missing []string, in io.Reader, out io.Writer) error {
+	return ensureHostDirs(missing, in, out, isTerminal(os.Stdin))
+}
+
+func ensureHostDirs(missing []string, in io.Reader, out io.Writer, interactive bool) error {
 	if len(missing) == 0 {
 		return nil
 	}
-	if !isTerminal(os.Stdin) {
+	if !interactive {
 		return nil
 	}
 	fmt.Fprintln(out, "drun: the following mount paths do not exist on the host:")
