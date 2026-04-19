@@ -121,13 +121,20 @@ func Print(args []string) {
 func quoteAll(args []string) []string {
 	out := make([]string, len(args))
 	for i, a := range args {
-		if strings.ContainsAny(a, " \t\"'$") {
-			out[i] = "'" + strings.ReplaceAll(a, "'", `'\''`) + "'"
-		} else {
-			out[i] = a
-		}
+		out[i] = shellQuote(a)
 	}
 	return out
+}
+
+// shellQuote returns a POSIX shell-safe single-quoted form of s. The output
+// is always quoted, even for "safe" strings, so that the emitted command is
+// unambiguous when pasted into a shell regardless of extension (aliases,
+// functions, etc.).
+func shellQuote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func expandMount(m string) string {

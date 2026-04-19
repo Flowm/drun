@@ -152,10 +152,24 @@ func TestExpandMount(t *testing.T) {
 
 func TestPrintQuoting(t *testing.T) {
 	args := []string{"run", "--entrypoint", "bash", "alpine", "-c", "echo hi"}
-	// Print goes to stdout; we just exercise quoteAll directly.
 	quoted := quoteAll(args)
+	// Every arg is unconditionally single-quoted so the emitted command is
+	// unambiguous when pasted into a shell.
+	for i, q := range quoted {
+		if !strings.HasPrefix(q, "'") || !strings.HasSuffix(q, "'") {
+			t.Errorf("arg %d not quoted: %q", i, q)
+		}
+	}
 	if quoted[len(quoted)-1] != "'echo hi'" {
 		t.Errorf("expected quoted arg, got %q", quoted[len(quoted)-1])
+	}
+}
+
+func TestShellQuoteEscapesSingleQuotes(t *testing.T) {
+	got := shellQuote(`it's a "test"; rm -rf /`)
+	want := `'it'\''s a "test"; rm -rf /'`
+	if got != want {
+		t.Errorf("shellQuote = %q, want %q", got, want)
 	}
 }
 

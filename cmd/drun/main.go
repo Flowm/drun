@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,7 +30,7 @@ Usage:
   drun [opts] -i <ref> <preset> [args]  Run a preset with its image overridden
   drun --list                           List known presets
   drun --build <preset> [args...]       Ensure layer image exists, then print docker command
-  drun --prune                          Remove all drun/* local images
+  drun --prune                          Remove all drun/* local images (prompts)
   drun -h, --help                       Show this help
   drun --version                        Print version
 
@@ -46,6 +48,7 @@ Flags:
       --entrypoint <cmd>         Override entrypoint
       --home <path>              Override HOME inside container
       --docker-socket            Mount /var/run/docker.sock
+  -y, --yes                      Skip confirmation prompts (e.g. --prune)
 `
 
 type flags struct {
@@ -54,6 +57,7 @@ type flags struct {
 	pruneMode   bool
 	helpMode    bool
 	versionMode bool
+	yes         bool
 
 	image        string
 	layers       []string
@@ -94,7 +98,9 @@ func main() {
 	case f.listMode:
 		cmdList(presets)
 	case f.pruneMode:
-		cmdPrune()
+		if err := cmdPrune(f); err != nil {
+			die(err)
+		}
 	default:
 		if err := cmdRun(presets, f); err != nil {
 			die(err)
@@ -118,24 +124,42 @@ func cmdList(presets config.Presets) {
 	}
 }
 
-func cmdPrune() {
+func cmdPrune(f *flags) error {
 	out, err := exec.Command("docker", "images", "--format", "{{.Repository}}:{{.Tag}}",
 		"--filter", "reference="+build.ImageNamePrefix+"/*").Output()
 	if err != nil {
-		die(fmt.Errorf("list drun images: %w", err))
+		return fmt.Errorf("list drun images: %w", err)
 	}
-	tags := strings.Fields(string(out))
+	var tags []string
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	for scanner.Scan() {
+		t := strings.TrimSpace(scanner.Text())
+		if t != "" {
+			tags = append(tags, t)
+		}
+	}
 	if len(tags) == 0 {
 		fmt.Println("no drun/* images to prune")
-		return
+		return nil
+	}
+	if !f.yes {
+		fmt.Fprintf(os.Stderr, "About to remove %d drun/* image(s):\n", len(tags))
+		for _, t := range tags {
+			fmt.Fprintf(os.Stderr, "  %s\n", t)
+		}
+		fmt.Fprint(os.Stderr, "Proceed? [y/N] ")
+		reader := bufio.NewReader(os.Stdin)
+		line, _ := reader.ReadString('\n')
+		ans := strings.ToLower(strings.TrimSpace(line))
+		if ans != "y" && ans != "yes" {
+			return fmt.Errorf("aborted")
+		}
 	}
 	args := append([]string{"rmi"}, tags...)
 	cmd := exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		die(err)
-	}
+	return cmd.Run()
 }
 
 func cmdRun(presets config.Presets, f *flags) error {
@@ -321,6 +345,8 @@ func parseArgs(argv []string) (*flags, error) {
 			f.buildMode = true
 		case a == "--docker-socket":
 			f.dockerSocket = true
+		case a == "--yes" || a == "-y":
+			f.yes = true
 		case a == "--image" || a == "-i":
 			v, err := takeVal(argv, &i, a)
 			if err != nil {

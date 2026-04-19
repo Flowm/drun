@@ -18,6 +18,9 @@ func TestValidate(t *testing.T) {
 		{"ok-with-mixed-layer", Preset{Image: "node", Layer: map[string][]string{"apk": {"git"}, "npm": {"@openai/codex"}}}, false},
 		{"missing-image", Preset{}, true},
 		{"unknown-pm", Preset{Image: "alpine", Layer: map[string][]string{"pacman": {"jq"}}}, true},
+		{"injection-semicolon", Preset{Image: "alpine", Layer: map[string][]string{"apk": {"jq; rm -rf /"}}}, true},
+		{"injection-backtick", Preset{Image: "alpine", Layer: map[string][]string{"apk": {"`id`"}}}, true},
+		{"injection-space", Preset{Image: "alpine", Layer: map[string][]string{"apk": {"jq curl"}}}, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

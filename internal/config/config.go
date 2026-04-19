@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"gopkg.in/yaml.v3"
 )
@@ -99,16 +100,28 @@ func userConfigPath() (string, error) {
 	return filepath.Join(home, ".config", "drun", "presets.yaml"), nil
 }
 
+// validPackageName restricts layer package names to a conservative set of
+// characters common across apk/apt/dnf/npm (including scoped npm names like
+// `@scope/pkg`). This prevents a malicious user-supplied presets file from
+// smuggling shell metacharacters into the `RUN` lines generated in the
+// Dockerfile.
+var validPackageName = regexp.MustCompile(`^@?[A-Za-z0-9][A-Za-z0-9._@/+-]*$`)
+
 // Validate checks a single preset for consistency.
 func (p Preset) Validate(name string) error {
 	if p.Image == "" {
 		return fmt.Errorf("preset %q: image is required", name)
 	}
-	for pm := range p.Layer {
+	for pm, pkgs := range p.Layer {
 		switch pm {
 		case "apk", "apt", "dnf", "npm":
 		default:
 			return fmt.Errorf("preset %q: unsupported package manager %q", name, pm)
+		}
+		for _, pkg := range pkgs {
+			if !validPackageName.MatchString(pkg) {
+				return fmt.Errorf("preset %q: invalid %s package name %q", name, pm, pkg)
+			}
 		}
 	}
 	return nil
