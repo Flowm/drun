@@ -1,3 +1,7 @@
+// Package config loads drun presets from the embedded defaults and an
+// optional user override at $XDG_CONFIG_HOME/drun/presets.yaml (falling back
+// to ~/.config/drun/presets.yaml). User presets fully replace shipped ones
+// with the same name.
 package config
 
 import (
@@ -17,7 +21,7 @@ var embeddedPresets []byte
 type Preset struct {
 	Image      string              `yaml:"image"`
 	Layer      map[string][]string `yaml:"x-drun-layer,omitempty"`
-	Home       string              `yaml:"-"`
+	Home       string              `yaml:"x-drun-home,omitempty"`
 	Mounts     []string            `yaml:"volumes,omitempty"`
 	Env        map[string]string   `yaml:"environment,omitempty"`
 	Ports      []string            `yaml:"ports,omitempty"`
@@ -78,6 +82,9 @@ func loadComposePresets(data []byte) (Presets, error) {
 	return out, nil
 }
 
+// normalize moves the conventional `environment.HOME` key (if any) into
+// Preset.Home so `docker run -e HOME=…` is emitted. An explicit
+// `x-drun-home` set in YAML takes precedence over the env-derived value.
 func (p *Preset) normalize() {
 	if len(p.Env) == 0 {
 		return
@@ -86,7 +93,9 @@ func (p *Preset) normalize() {
 	if !ok {
 		return
 	}
-	p.Home = home
+	if p.Home == "" {
+		p.Home = home
+	}
 	delete(p.Env, "HOME")
 	if len(p.Env) == 0 {
 		p.Env = nil

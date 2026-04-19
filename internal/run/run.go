@@ -1,9 +1,11 @@
 //go:build !windows
 
+// Package run assembles and executes the `docker run` command for a preset.
 package run
 
 import (
 	"bufio"
+	"cmp"
 	cryptorand "crypto/rand"
 	"encoding/binary"
 	"fmt"
@@ -49,14 +51,14 @@ func Assemble(name string, p config.Preset, opts Options, image string, extraArg
 
 	args = append(args, "-v", cwd()+":/cwd", "-w", "/cwd")
 
-	user := firstNonEmpty(opts.User, p.User)
+	user := cmp.Or(opts.User, p.User)
 	if user == "" {
 		args = append(args, "-u", hostUser())
 	} else if user != "default" {
 		args = append(args, "-u", user)
 	}
 
-	home := firstNonEmpty(opts.Home, p.Home)
+	home := cmp.Or(opts.Home, p.Home)
 	if home != "" {
 		args = append(args, "-e", "HOME="+home)
 	}
@@ -76,7 +78,7 @@ func Assemble(name string, p config.Preset, opts Options, image string, extraArg
 		args = append(args, "-p", port)
 	}
 
-	entrypoint := firstNonEmpty(opts.Entrypoint, p.Entrypoint)
+	entrypoint := cmp.Or(opts.Entrypoint, p.Entrypoint)
 	if entrypoint != "" {
 		args = append(args, "--entrypoint", entrypoint)
 	}
@@ -165,13 +167,6 @@ func cwd() string {
 
 func hostUser() string {
 	return fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
-}
-
-func firstNonEmpty(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
 }
 
 func isTerminal(f *os.File) bool {

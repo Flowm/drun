@@ -1,12 +1,16 @@
+// Package build renders Dockerfiles for layered presets, computes
+// deterministic image tags, and invokes `docker build` to materialize them.
 package build
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -38,11 +42,7 @@ func hash(p config.Preset) string {
 	b.WriteString(p.Home)
 	b.WriteString("\n")
 
-	pms := make([]string, 0, len(p.Layer))
-	for pm := range p.Layer {
-		pms = append(pms, pm)
-	}
-	sort.Strings(pms)
+	pms := slices.Sorted(maps.Keys(p.Layer))
 	for _, pm := range pms {
 		pkgs := append([]string(nil), p.Layer[pm]...)
 		sort.Strings(pkgs)
@@ -75,7 +75,7 @@ func dockerfile(p config.Preset, runtimeUser string) string {
 	fmt.Fprintf(&b, "FROM %s\n", p.Image)
 	b.WriteString("USER 0:0\n")
 
-	for _, pm := range sortedKeys(p.Layer) {
+	for _, pm := range slices.Sorted(maps.Keys(p.Layer)) {
 		pkgs := p.Layer[pm]
 		if len(pkgs) == 0 {
 			continue
@@ -151,15 +151,6 @@ func installCmd(pm string, pkgs []string) string {
 		return "npm install -g " + joined
 	}
 	return "false"
-}
-
-func sortedKeys(m map[string][]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 // ImageExists returns true if the local docker daemon has the given tag.
