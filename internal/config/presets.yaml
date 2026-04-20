@@ -63,6 +63,12 @@ services:
       - ~/.mitmproxy:/home/mitmproxy/.mitmproxy
     user: default
 
+  mtr:
+    image: alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+    entrypoint: mtr
+    x-drun-layer:
+      apk: [mtr]
+
   node:
     image: node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4
 
@@ -77,7 +83,7 @@ services:
       - ~/.cache/opencode:/home/user/.cache/opencode
       - ~/.gitconfig:/home/user/.gitconfig:ro
     x-drun-layer:
-      apk: [git, nodejs, npm, uv, go, make, curl]
+      apk: [git, git-lfs, nodejs, npm, uv, go, make, curl]
 
   pandoc:
     image: pandoc/core:3.9@sha256:bfca0ecc070ece31b6f56ba668446ab2dc9c973047eebb57b4d0710de8b91d0b
