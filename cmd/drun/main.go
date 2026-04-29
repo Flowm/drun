@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"slices"
 	"sort"
 	"strings"
@@ -22,6 +23,8 @@ var (
 	version = "dev"
 	commit  = "none"
 	date    = "unknown"
+
+	readBuildInfo = debug.ReadBuildInfo
 )
 
 const usage = `drun — docker run, preset-driven.
@@ -87,6 +90,7 @@ func main() {
 		return
 	}
 	if f.versionMode {
+		version, commit, date := buildVersionInfo()
 		fmt.Printf("drun %s (commit %s, built %s)\n", version, commit, date)
 		return
 	}
@@ -108,6 +112,34 @@ func main() {
 			die(err)
 		}
 	}
+}
+
+func buildVersionInfo() (string, string, string) {
+	v, c, d := version, commit, date
+
+	info, ok := readBuildInfo()
+	if !ok {
+		return v, c, d
+	}
+
+	if v == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		v = info.Main.Version
+	}
+
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			if c == "none" && setting.Value != "" {
+				c = setting.Value
+			}
+		case "vcs.time":
+			if d == "unknown" && setting.Value != "" {
+				d = setting.Value
+			}
+		}
+	}
+
+	return v, c, d
 }
 
 func cmdList(presets config.Presets) {
