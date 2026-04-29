@@ -1,5 +1,11 @@
 # drun - docker run
 
+[![CI](https://img.shields.io/github/actions/workflow/status/flowm/drun/ci.yml?branch=main&label=ci)](https://github.com/flowm/drun/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/flowm/drun)](https://github.com/flowm/drun/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/flowm/drun)](https://github.com/flowm/drun/blob/main/go.mod)
+[![Container Image](https://img.shields.io/badge/ghcr-ghcr.io%2Fflowm%2Fdrun-blue)](https://github.com/flowm/drun/pkgs/container/drun)
+[![License](https://img.shields.io/github/license/flowm/drun)](https://github.com/flowm/drun/blob/main/LICENSE)
+
 A preset-driven wrapper around `docker run` for ad-hoc usage of tools.
 
 ## Features
