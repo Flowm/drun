@@ -73,7 +73,7 @@ services:
     image: node:26-alpine@sha256:e71ac5e964b9201072425d59d2e876359efa25dc96bb1768cb73295728d6e4ea
 
   opencode:
-    image: ghcr.io/anomalyco/opencode:1.15.4@sha256:644cfa5b4c980b2fb1f97248aa8dbd459ecd675c4f42620482d83ffe8cf55fa0
+    image: ghcr.io/anomalyco/opencode:1.14.48@sha256:27dbced5ab6a815631a620e55c49e74d826b399da37f044385453e28df1852ed
     environment:
       HOME: /home/user
     volumes:
