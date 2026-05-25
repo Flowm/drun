@@ -25,6 +25,7 @@ services:
         - make
         - nodejs
         - npm
+        - python3
         - uv
       npm: ['@anthropic-ai/claude-code']
 
@@ -46,6 +47,7 @@ services:
         - make
         - nodejs
         - npm
+        - python3
         - uv
       npm: ['@openai/codex']
 
@@ -103,7 +105,17 @@ services:
       - ~/.cache/opencode:/home/user/.cache/opencode
       - ~/.gitconfig:/home/user/.gitconfig:ro
     x-drun-layer:
-      apk: [git, git-lfs, nodejs, npm, uv, go, make, curl]
+      apk:
+        - bash
+        - curl
+        - git
+        - git-lfs
+        - go
+        - make
+        - nodejs
+        - npm
+        - python3
+        - uv
 
   pandoc:
     image: pandoc/extra:3.9-debian@sha256:a13da0f520e5b0d1d3d45b077982ca6233fe7aee6f69385e3ccff94f26e9fb89
